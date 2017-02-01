@@ -1,7 +1,7 @@
 import cv2
 import os
 
-
+# простейшая работа с видео
 def print_video_info(videoName):
     if os.path.isfile(name):
         size = os.path.getsize(name)
