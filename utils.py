@@ -2,6 +2,7 @@ import cv2
 import os
 import networkx as nx
 import matplotlib.pyplot as plt
+import numpy as np
 
 def print_video_info(videoName):
     if os.path.isfile(videoName):
@@ -50,7 +51,7 @@ def show_video_gray_diff(videoName):
             prevFrame = frame
             continue
         else:
-           diff = pixelwise_diff(prevFrame, frame)
+           diff = pixelwise_diff(prevFrame, frame, 20)
            prevFrame = frame
 
         cv2.imshow('diff', diff)
@@ -83,9 +84,24 @@ def show_first_n_frames(videoName, n):
             cv2.destroyAllWindows()
             break
 
-def pixelwise_diff(prev, next):
-    diff = prev - next
-    return diff
+def pixelwise_diff(prev, next, threshold):
+    img = np.zeros((prev.shape[0], prev.shape[1], 3), np.uint8) # create black frame 3 channels
+    for i in range(prev.shape[0]):
+        for j in range(prev.shape[1]):
+            pixel_diff = int(prev[i,j]) - int(next[i,j])
+            if abs(pixel_diff) > threshold:
+                if pixel_diff < 0:
+                    set_pixel_blue(i,j,img)
+                else:
+                    set_pixel_red(i,j, img)
+
+    return img
+
+def set_pixel_red(i,j, img):
+    img[i,j,0] = 255
+
+def set_pixel_blue(i,j, img):
+    img[i,j,2] = 255
 
 def sample_graph_networkx():
     G = nx.Graph()
