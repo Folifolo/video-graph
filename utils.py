@@ -51,9 +51,10 @@ def show_video_gray_diff(videoName):
             prevFrame = frame
             continue
         else:
-           diff = pixelwise_diff(prevFrame, frame, 20)
+           diff = pixelwise_diff(prevFrame, frame, 20) #TODO threshold
            prevFrame = frame
 
+        draw_anchor(50,50, diff) #TODO moving anchor
         cv2.imshow('diff', diff)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -96,6 +97,13 @@ def pixelwise_diff(prev, next, threshold):
                     set_pixel_red(i,j, img)
 
     return img
+
+def draw_anchor(x, y, img):
+    color = (255, 255, 255)
+    inner_radius = 4
+    outer_radius = 10
+    cv2.circle(img, (x, y), inner_radius, color, cv2.FILLED)
+    cv2.circle(img, (x, y), outer_radius, color, 1)
 
 def set_pixel_red(i,j, img):
     img[i,j,0] = 255
