@@ -18,7 +18,7 @@ def show_video_grayscale(videoName):
 
     cap = cv2.VideoCapture(videoName)
 
-    while(cap.isOpened()):
+    while cap.isOpened():
         ret, frame = cap.read()
         if ret != True:
             break

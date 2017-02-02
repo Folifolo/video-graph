@@ -3,13 +3,7 @@ import os
 import networkx as nx
 import matplotlib.pyplot as plt
 import utils
-# VIDEO
 
-
-
-
-
-# GRAPHS
 
 def sample_graph_networkx():
     G = nx.Graph()
