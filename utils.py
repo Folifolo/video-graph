@@ -51,7 +51,7 @@ def show_video_gray_diff(videoName):
             prevFrame = frame
             continue
         else:
-           diff = pixelwise_diff(prevFrame, frame, 20) #TODO threshold
+           diff = pixelwise_diff(prevFrame, frame, 10) #TODO threshold
            prevFrame = frame
 
         draw_anchor(50,50, diff) #TODO moving anchor
@@ -102,8 +102,15 @@ def draw_anchor(x, y, img):
     color = (255, 255, 255)
     inner_radius = 4
     outer_radius = 10
-    cv2.circle(img, (x, y), inner_radius, color, cv2.FILLED)
-    cv2.circle(img, (x, y), outer_radius, color, 1)
+    cv2.circle(img, (int(x), int(y)), inner_radius, color, cv2.FILLED)
+    #cv2.circle(img, (x, y), outer_radius, color, 1)
+
+def draw_quad(x, y, side, img):
+    half = int(side/2)
+    pt1 = (x - half, y - half)
+    pt2 = (x + half, y + half)
+    color = (255,255,255)
+    cv2.rectangle(img, pt1, pt2, color)
 
 def set_pixel_red(i,j, img):
     img[i,j,0] = 255
