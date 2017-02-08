@@ -115,7 +115,7 @@ p = 0.1
 
 import scipy
 def generate_sparse_matrix(n, m):
-    M = scipy.sparse.random(n, m, density = 0.65 )
+    M = scipy.sparse.random(n, m, density = 0.25 )
     return M
 
 
@@ -124,12 +124,14 @@ def add_first_layer(matrix):
     index = 0
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
-            G.add_node(index, pos = (i,j), color = matrix[i,j])
+            G.add_node(index, pos = (i,j), color = matrix[i,j], input = True)
             index +=1
 
-    coordinates = nx.get_node_attributes(G, 'pos').values()
+    positions = nx.get_node_attributes(G, 'pos').values()
     colors = nx.get_node_attributes(G, 'color').values()
-    nx.draw(G, pos = coordinates, node_color= colors)
+
+    plt.set_cmap(plt.cm.get_cmap('Blues'))
+    nx.draw(G, pos = positions, node_color= colors)
     plt.show()
 
 
