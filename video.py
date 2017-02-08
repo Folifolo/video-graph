@@ -65,7 +65,8 @@ class RuGaze:
 
 
 class RuGraph:
-    pass
+    def getNodeNeighborhood(self, node, radius): # в топологичесткой окрестности узла ( но не выходя за кластер, если он есть?)
+        pass
 
 
 
@@ -104,6 +105,38 @@ class Learning:
         cv2.destroyAllWindows()
 
 
-learning = Learning(name1)
-learning.processVideo()
+#learning = Learning(name1)
+#learning.processVideo()
+#utils.sample_graph_networkx()
+
+n = 50 # n nodes
+p = 0.1
+
+
+import scipy
+def generate_sparse_matrix(n, m):
+    M = scipy.sparse.random(n, m, density = 0.65 )
+    return M
+
+
+def add_first_layer(matrix):
+    G = nx.Graph()
+    index = 0
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            G.add_node(index, pos = (i,j), color = matrix[i,j])
+            index +=1
+
+    coordinates = nx.get_node_attributes(G, 'pos').values()
+    colors = nx.get_node_attributes(G, 'color').values()
+    nx.draw(G, pos = coordinates, node_color= colors)
+    plt.show()
+
+
+
+M = generate_sparse_matrix(5,5)
+
+add_first_layer (M.A)
+
+
 
