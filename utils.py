@@ -4,6 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 def print_video_info(videoName):
     if os.path.isfile(videoName):
         size = os.path.getsize(videoName)

@@ -2,6 +2,8 @@
 
 import random
 import os
+
+import itertools
 import networkx as nx
 import matplotlib.pyplot as plt
 import cv2
@@ -9,7 +11,7 @@ import numpy as np
 
 import utils
 
-
+id_generator = itertools.count(0)
 name1 = 'bigvideo.mp4'
 name2 = 'sample.avi'
 print 'opencv version: ' + cv2.__version__
@@ -121,24 +123,53 @@ def generate_sparse_matrix(n, m):
 
 def add_first_layer(matrix):
     G = nx.Graph()
-    index = 0
+
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
+            index = id_generator.next()
             G.add_node(index, pos = (i,j), color = matrix[i,j], input = True)
-            index +=1
+
 
     positions = nx.get_node_attributes(G, 'pos').values()
     colors = nx.get_node_attributes(G, 'color').values()
 
     plt.set_cmap(plt.cm.get_cmap('Blues'))
-    nx.draw(G, pos = positions, node_color= colors)
-    plt.show()
+    input_nodes = nx.get_node_attributes(G, 'input').keys()
+    nx.draw_networkx_nodes(G, nodelist=input_nodes, pos = positions, node_color= colors)
+
+    return G
+
+def matrix_to_neuron(G, matrix):
+    index = id_generator.next()
+    G.add_node(index)
+    nx.draw_networkx_nodes(G, nodelist=index)
 
 
+#G = add_first_layer (M.A)
+#plt.show()
 
-M = generate_sparse_matrix(5,5)
+def index_in_matrix(matrix, index):
+    if index in np.ndindex(matrix.shape):
+        return True
+    return False
 
-add_first_layer (M.A)
 
+# итератор по области матрицы
+def indexes_submatrix(matrix, center_of_area, shape_of_area):
+    X, Y = center_of_area[0], center_of_area[1]
+    side_x, side_y = int(shape_of_area[0]/2), int(shape_of_area[1]/2)
+    max_x = X + side_x
+    min_x = X - side_x
+    min_y = Y - side_y
+    max_y = Y + side_y
 
+    for x in range(min_x, max_x):
+        for y in range (min_y, max_y):
+            if index_in_matrix(matrix, (x, y)):
+                yield x, y
 
+M = generate_sparse_matrix(15,15)
+points_in_area = indexes_submatrix(M.A, (5,5), (4,4))
+
+while True:
+    print points_in_area.next()
