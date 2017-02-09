@@ -172,4 +172,7 @@ M = generate_sparse_matrix(15,15)
 points_in_area = indexes_submatrix(M.A, (5,5), (4,4))
 
 while True:
-    print points_in_area.next()
+    try:
+        print points_in_area.next()
+    except StopIteration:
+        break
