@@ -14,7 +14,7 @@ import utils
 id_generator = itertools.count(0)
 name1 = 'bigvideo.mp4'
 name2 = 'sample.avi'
-print 'opencv version: ' + cv2.__version__
+
 
 # Сеть шарит взглядом по бегущему видеопотоку
 # Взгляд ставится там, где что-то происходит (большой дифф между соседними кадрами)
@@ -168,8 +168,7 @@ def indexes_submatrix(matrix, center_of_area, shape_of_area):
             if index_in_matrix(matrix, (x, y)):
                 yield x, y
 
-M = generate_sparse_matrix(15,15)
-points_in_area = indexes_submatrix(M.A, (5,5), (4,4))
+
 
 # while True:
 #     try:
