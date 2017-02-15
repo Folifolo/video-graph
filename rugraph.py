@@ -4,6 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import utils
 
+
 # если полезность нейрона ниже пороговой, то удаляем его
 DELETE_THR = 0.2
 
@@ -18,6 +19,7 @@ class RuGraph:
     def __init__(self):
         self.G = nx.DiGraph()
         self.generator = itertools.count(0)
+        self.max_layer = 0
 
     def add_input_layer (self, shape):
         for i in range(shape[0]):
@@ -29,7 +31,7 @@ class RuGraph:
         self.G.add_node(n,
                         type = "S",
                         layer = 0,
-                        usefulness = 1,
+                        useful = 1,
                         activation = 0,
                         index = index
                         )
@@ -42,11 +44,20 @@ class RuGraph:
                 self.G.node[id]['activation'] = input_signal[i,j]
 
     def forvard_pass(self, input_siganl):
-        self._pass_to_init_layer(input_siganl)
+        elf._pass_to_init_layer(input_siganl)
 
 
-    def add_event_neuron (self, source_neurons):
-        pass
+    def add_event_neuron (self, source_ids, source_attrs):
+        new_id = self.generator.next()
+        #TODO !! leayer = max(layers of source) + 1
+        self.G.add_node(new_id,
+                        type="N",
+                        layer=0,
+                        usefulness=1,
+                        activation=0,
+                        )
+        for id in source_ids:
+            self.G.add_edge(id, new_id, weight = source_attrs[id]['activation'])
 
     def delete_neuron(self, id):
         pass
@@ -78,4 +89,5 @@ graph.add_input_layer( M.A.shape )
 graph.forvard_pass(M.A)
 vis = RuGraphVisualizer()
 vis.draw_input_layer_with_act(graph.G)
+
 plt.show()
