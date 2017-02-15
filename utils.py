@@ -133,3 +133,8 @@ def sample_graph_networkx():
     G.add_edge('4', '5')
     nx.draw_spectral(G)
     plt.show()
+
+import scipy
+def generate_sparse_matrix(n, m):
+    M = scipy.sparse.random(n, m, density = 0.25 )
+    return M

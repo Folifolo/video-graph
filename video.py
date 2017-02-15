@@ -14,7 +14,7 @@ import utils
 id_generator = itertools.count(0)
 name1 = 'bigvideo.mp4'
 name2 = 'sample.avi'
-
+print 'opencv version: ' + cv2.__version__
 
 # Сеть шарит взглядом по бегущему видеопотоку
 # Взгляд ставится там, где что-то происходит (большой дифф между соседними кадрами)
@@ -115,10 +115,7 @@ n = 50 # n nodes
 p = 0.1
 
 
-import scipy
-def generate_sparse_matrix(n, m):
-    M = scipy.sparse.random(n, m, density = 0.25 )
-    return M
+
 
 
 def add_first_layer(matrix):
@@ -132,11 +129,10 @@ def add_first_layer(matrix):
 
     positions = nx.get_node_attributes(G, 'pos').values()
     colors = nx.get_node_attributes(G, 'color').values()
+    input_nodes = nx.get_node_attributes(G, 'input').keys()
 
     plt.set_cmap(plt.cm.get_cmap('Blues'))
-    input_nodes = nx.get_node_attributes(G, 'input').keys()
     nx.draw_networkx_nodes(G, nodelist=input_nodes, pos = positions, node_color= colors)
-
     return G
 
 def matrix_to_neuron(G, matrix):
@@ -168,7 +164,8 @@ def indexes_submatrix(matrix, center_of_area, shape_of_area):
             if index_in_matrix(matrix, (x, y)):
                 yield x, y
 
-
+M = generate_sparse_matrix(15,15)
+points_in_area = indexes_submatrix(M.A, (5,5), (4,4))
 
 # while True:
 #     try:

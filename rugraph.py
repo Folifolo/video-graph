@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*
+import itertools
 import networkx as nx
 import matplotlib.pyplot as plt
+import utils
 
-# если специализация нейрона ниже пороговой, то удаляем его
+# если полезность нейрона ниже пороговой, то удаляем его
 DELETE_THR = 0.2
 
 # на сколько за один такт затухает кратковременная память о событии
@@ -15,13 +17,33 @@ EVENT_KERNEL_CAPACITY = 6
 class RuGraph:
     def __init__(self):
         self.G = nx.DiGraph()
+        self.generator = itertools.count(0)
 
-    # инициализировать начальный слой как матризу S-нейронов, ни с чем не соединых
     def add_input_layer (self, shape):
-        pass
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                self._add_input_neuron((i,j))
+
+    def _add_input_neuron(self, index):
+        n = self.generator.next()
+        self.G.add_node(n,
+                        type = "S",
+                        layer = 0,
+                        usefulness = 1,
+                        activation = 0,
+                        index = index
+                        )
+
+    def _pass_to_init_layer(self, input_signal):
+        for i in range(input_signal.shape[0]):
+            for j in range(input_signal.shape[1]):
+                n = filter(lambda (n, d): d['index'] == (i,j), self.G.nodes(data=True))
+                id = n[0][0]
+                self.G.node[id]['activation'] = input_signal[i,j]
 
     def forvard_pass(self, input_siganl):
-        pass
+        self._pass_to_init_layer(input_siganl)
+
 
     def add_event_neuron (self, source_neurons):
         pass
@@ -36,9 +58,24 @@ class RuGraphVisualizer:
     def draw_graph(self, G):
         pass
 
+    def draw_input_layer_with_act(self, G):
+        input = nx.get_node_attributes(G, 'index')
+        ids = input.keys()
+        positions = input.values()
+        colors = []
+        for id in ids:
+            colors.append(G.node[id]['activation'])
 
-print "--------"
+        plt.set_cmap(plt.cm.get_cmap('Blues'))
+        nx.draw_networkx_nodes(G, nodelist=ids, pos=positions, node_color=colors)
+
+
+print "--------test-------"
+M = utils.generate_sparse_matrix(15,15)
 
 graph = RuGraph()
+graph.add_input_layer( M.A.shape )
+graph.forvard_pass(M.A)
 vis = RuGraphVisualizer()
-vis.draw_graph(graph)
+vis.draw_input_layer_with_act(graph.G)
+plt.show()
