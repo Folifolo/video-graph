@@ -28,12 +28,13 @@ class RuGraph:
     def __init__(self):
         self.G = nx.DiGraph()
         self.generator = itertools.count(0)
-        self.max_layer = 0
+        self.max_layer = -1
 
     def _add_input_layer (self, shape):
         for i in range(shape[0]):
             for j in range(shape[1]):
                 self._add_input_neuron((i,j))
+        self.max_layer = 0
 
     def _add_input_neuron(self, index):
         n = self.generator.next()
@@ -100,11 +101,17 @@ class RuGraph:
             if attr['layer'] == layer_num:
                 self.propagate_to_neuron(n)
 
-    def forward_pass(self, input_siganl):
-        self.propagate_to_init_layer(input_siganl)
+    def forward_pass(self, input_signal):
+        self.propagate_to_init_layer(input_signal)
         for layer_i in range(1, self.max_layer + 1):
             self.propagate_to_layer(layer_i)
 
+    def print_info(self):
+        print "Number of layers: " + str(self.max_layer + 1)
+        print "Number of edges: " + str (self.G.number_of_edges())
+        for layer_i in range(self.max_layer + 1):
+            n = [n for n in self.G.nodes() if self.G.node[n]['layer'] == layer_i]
+            print '   layer ' + str(layer_i) + ": " + str(len(n)) + " nodes;"
 
 class RuGraphVisualizer:
     def __init__(self):
@@ -131,6 +138,7 @@ M = utils.generate_sparse_matrix(15,15)
 graph = RuGraph()
 graph._add_input_layer( M.A.shape )
 graph.forward_pass(M.A)
+graph.print_info()
 vis = RuGraphVisualizer()
 vis.draw_input_layer_with_act(graph.G)
 
