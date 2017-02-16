@@ -16,11 +16,13 @@ SALIENCY_FADING_PER_TIME = 0.1
 # может зарегстрировать в свое рец. поле новодобавлемый NS-нейрон
 EVENT_KERNEL_CAPACITY = 6
 
+
 class GraphError(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):
         return repr(self.value)
+
 
 class RuGraph:
     def __init__(self):
@@ -42,7 +44,7 @@ class RuGraph:
                         index = index
                         )
 
-    def _pass_to_init_layer(self, input_signal):
+    def propagate_to_init_layer(self, input_signal):
         for i in range(input_signal.shape[0]):
             for j in range(input_signal.shape[1]):
                 n = filter(lambda (n, d): d['index'] == (i,j), self.G.nodes(data=True))
@@ -76,7 +78,7 @@ class RuGraph:
     def neuron_recognition_rate(self, input_signal, weights):
         return np.cos(input_signal, weights) # число из [0,1]
 
-    def pass_to_neuron(self, id):
+    def propagate_to_neuron(self, id):
         sources = self.G.predecessors(id)
         if len(sources) == 0:
             raise GraphError("Neuron has no input connections")
@@ -90,15 +92,18 @@ class RuGraph:
 
         self.G.node[id]['activity'] = self.neuron_recognition_rate(input_activities, input_weights)
 
-
-    def forward_pass(self, input_siganl):
-        self._pass_to_init_layer(input_siganl)
-
-
-
-
     def delete_neuron(self, id):
         self.G.remove_node(id)
+
+    def propagate_to_layer(self, layer_num):
+        for (n, attr) in self.G.nodes():
+            if attr['layer'] == layer_num:
+                self.propagate_to_neuron(n)
+
+    def forward_pass(self, input_siganl):
+        self.propagate_to_init_layer(input_siganl)
+
+
 
 class RuGraphVisualizer:
     def __init__(self):
@@ -112,8 +117,8 @@ class RuGraphVisualizer:
         ids = input.keys()
         positions = input.values()
         colors = []
-        for id in ids:
-            colors.append(G.node[id]['activation'])
+        for n in ids:
+            colors.append(G.node[n]['activation'])
 
         plt.set_cmap(plt.cm.get_cmap('Blues'))
         nx.draw_networkx_nodes(G, nodelist=ids, pos=positions, node_color=colors)
