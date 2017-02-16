@@ -101,17 +101,30 @@ class RuGraph:
             if attr['layer'] == layer_num:
                 self.propagate_to_neuron(n)
 
-    def forward_pass(self, input_signal):
-        self.propagate_to_init_layer(input_signal)
-        for layer_i in range(1, self.max_layer + 1):
-            self.propagate_to_layer(layer_i)
-
     def print_info(self):
         print "Number of layers: " + str(self.max_layer + 1)
         print "Number of edges: " + str (self.G.number_of_edges())
         for layer_i in range(self.max_layer + 1):
             n = [n for n in self.G.nodes() if self.G.node[n]['layer'] == layer_i]
             print '   layer ' + str(layer_i) + ": " + str(len(n)) + " nodes;"
+
+    def forward_pass(self, input_signal):
+        self.propagate_to_init_layer(input_signal)
+        for layer_i in range(1, self.max_layer + 1):
+            self.propagate_to_layer(layer_i)
+            # если не удалось построить хорошую низкоуровневую
+            # репрезентацию текущего сигнала, то высокоуровневую строить смысла нет
+            if self.signal_recognized_by_layer(layer_i):
+                continue
+            else:
+                self.insert_new_neurons_into_layer(layer_i)
+                break
+
+    def signal_recognized_by_layer(self, layer_num):
+        return True
+
+    def insert_new_neurons_into_layer(self, layer_num):
+        pass
 
 class RuGraphVisualizer:
     def __init__(self):
