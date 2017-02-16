@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*
 import itertools
+import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import utils
@@ -58,15 +59,37 @@ class RuGraph:
         for id in source_ids:
             self.G.add_edge(id, new_id, weight=source_attrs[id]['activation'])
 
+    def _get_layer_num_for_neuron(self,  source_attrs):
+        max_num = 0
+        for attrs in source_attrs.values():
+            num = attrs['layer']
+            if num > max_num:
+                max_num = num
+        return max_num
+
+    def get_node_weight(self, node_from, node_to):
+        return self.G[node_from][node_to]['weight']
+
+    def get_node_activity(self, id):
+        return self.G.node[id]['activity']
+
+    def neuron_recognition_rate(self, input_signal, weights):
+        return np.cos(input_signal, weights) # число из [0,1]
+
     def pass_to_neuron(self, id):
         sources = self.G.predecessors(id)
         if len(sources) == 0:
             raise GraphError("Neuron has no input connections")
-        print 'uuuuuu'
 
-    def _get_layer_num_for_neuron(self,  source_attrs):
-        # TODO !! leayer = max(layers of source) + 1
-        pass
+        input_activities = np.zeros (len(sources))
+        input_weights = np.zeros (len(sources))
+
+        for i in range (len(sources)):
+            input_weights[i] = self.get_node_weight(sources[i], id)
+            input_activities[i] = self.get_node_activity(sources[i])
+
+        self.G.node[id]['activity'] = self.neuron_recognition_rate(input_activities, input_weights)
+
 
     def forward_pass(self, input_siganl):
         self._pass_to_init_layer(input_siganl)
