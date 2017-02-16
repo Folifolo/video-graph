@@ -53,11 +53,14 @@ class RuGraph:
 
     def _add_event_neuron (self, source_ids, source_attrs):
         new_id = self.generator.next()
+        layer_num = self._get_layer_num_for_neuron(source_attrs)
         self.G.add_node(new_id,
-                        type="N",
-                        layer= self._get_layer_num_for_neuron(source_attrs),
-                        activation=1
+                        type = "N",
+                        layer = layer_num,
+                        activation = 1
                         )
+        if layer_num > self.max_layer:
+            self.max_layer = layer_num
         for id in source_ids:
             self.G.add_edge(id, new_id, weight=source_attrs[id]['activation'])
 
@@ -82,14 +85,11 @@ class RuGraph:
         sources = self.G.predecessors(id)
         if len(sources) == 0:
             raise GraphError("Neuron has no input connections")
-
         input_activities = np.zeros (len(sources))
         input_weights = np.zeros (len(sources))
-
         for i in range (len(sources)):
             input_weights[i] = self.get_node_weight(sources[i], id)
             input_activities[i] = self.get_node_activity(sources[i])
-
         self.G.node[id]['activity'] = self.neuron_recognition_rate(input_activities, input_weights)
 
     def delete_neuron(self, id):
@@ -102,7 +102,8 @@ class RuGraph:
 
     def forward_pass(self, input_siganl):
         self.propagate_to_init_layer(input_siganl)
-
+        for layer_i in range(1, self.max_layer + 1):
+            self.propagate_to_layer(layer_i)
 
 
 class RuGraphVisualizer:
