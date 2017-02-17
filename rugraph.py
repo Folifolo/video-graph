@@ -61,14 +61,6 @@ class RuGraph:
                 id = n[0][0] # фильтр всегда находит один нейрон с такими координатами
                 self.G.node[id]['activation'] = input_signal[i,j]
 
-    def _get_layer_num_for_neuron(self,  source_attrs):
-        max_num = 0
-        for attrs in source_attrs.values():
-            num = attrs['layer']
-            if num > max_num:
-                max_num = num
-        return max_num
-
     def get_node_weight(self, node_from, node_to):
         return self.G[node_from][node_to]['weight']
 
@@ -116,11 +108,12 @@ class RuGraph:
                 self.insert_new_neurons_into_layer(layer_i)
                 break
 
-    def get_activations_in_layer(self, layer_num):
-        return  {n : self.get_node_activity(n) for n in self.G.nodes() if self.G.node['layer'] == layer_num}
-
     ###########################################################
     ########## Создание мгновенных воспоминаний###############
+
+    def get_activations_in_layer(self, layer_num):
+        return {n : self.get_node_activity(n) for n in self.G.nodes() if self.G.node['layer'] == layer_num}
+
     def signal_recognized_by_layer(self, layer_num):
         activity_in_layer = self.get_activations_in_layer(layer_num)
         max_val = max(activity_in_layer.values())
@@ -129,13 +122,26 @@ class RuGraph:
         else:
             return False
 
-    def get_most_active_nodes(self, nodes_activity):
-        active_nodes = ( (k, v) for (k, v) in nodes_activity if v > THR_RECOGNITION)
+    def get_nodes_in_layer(self, layer_num):
+        return {n: G.node[n] for n in G.nodes() if G.node[n]['layer'] == layer_num}
+
+    def get_most_active_nodes(self, layer_num):
+        all_nodes = self.get_nodes_in_layer(layer_num)
+        #active_nodes = (node, attr for node,attr in all_nodes if attr['activation'] > THR_RECOGNITION)
+        active_nodes = ( node  for node in all_nodes if node.value()['activation'] > THR_RECOGNITION)
         return active_nodes
 
-    def _add_event_neuron (self, source_ids, source_attrs):
+    def _get_layer_num_for_neuron(self,  source_attrs):
+        max_num = 0
+        for attrs in source_attrs.values():
+            num = attrs['layer']
+            if num > max_num:
+                max_num = num
+        return max_num
+
+    def _add_event_neuron (self, neurons):
         new_id = self.generator.next()
-        layer_num = self._get_layer_num_for_neuron(source_attrs)
+        layer_num = self._get_layer_num_for_neuron(neurons.values())
         self.G.add_node(new_id,
                         type = "N",
                         layer = layer_num,
@@ -143,13 +149,16 @@ class RuGraph:
                         )
         if layer_num > self.max_layer:
             self.max_layer = layer_num
-        for id in source_ids:
-            self.G.add_edge(id, new_id, weight=source_attrs[id]['activation'])
+        for n, attr in neurons:
+            self.G.add_edge(n, new_id, weight=attr['activation'])
 
     def insert_new_neurons_into_layer(self, layer_num):
-        source_activity = self.get_activations_in_layer(layer_num - 1)
-        most_active = self.get_most_active_nodes(source_activity)
-        #TODO отрастить от них ЭН нестабильных
+        most_active = self.get_most_active_nodes(layer_num - 1)
+        rec_field_size = len(most_active) / EPISOD_MAX_SIZE
+        for i in range(EPISOD_MAX_SIZE):
+            pass #TODO
+
+
 
 
 class RuGraphVisualizer:
@@ -176,9 +185,6 @@ M = utils.generate_sparse_matrix(15,15)
 
 graph = RuGraph()
 graph._add_input_layer( M.A.shape )
-graph.forward_pass(M.A)
-graph.print_info()
-vis = RuGraphVisualizer()
-vis.draw_input_layer_with_act(graph.G)
-
-plt.show()
+# G = graph.G
+# n = {n: G.node[n] for n in G.nodes() if G.node[n]['type'] == 'S'}
+# print n
