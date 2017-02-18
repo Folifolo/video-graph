@@ -99,7 +99,6 @@ class RuGraph:
             print '   layer ' + str(layer_i) + ": " + str(len(n)) + " nodes;"
 
     def forward_pass(self, input_signal):
-
         for layer_i in range(0, self.max_layer + 1):
             if layer_i == 0:
                 self.propagate_to_init_layer(input_signal)
@@ -140,20 +139,20 @@ class RuGraph:
     def get_most_active_nodes(self, layer_num):
         all_nodes = self.get_nodes_in_layer(layer_num)
         #active_nodes = (node, attr for node,attr in all_nodes if attr['activation'] > THR_RECOGNITION)
-        active_nodes = ( node  for node in all_nodes if node.value()['activation'] > THR_RECOGNITION)
+        active_nodes = {node:attr for node,attr in all_nodes.items() if attr['activation'] > THR_RECOGNITION}
         return active_nodes
 
-    def _get_layer_num_for_neuron(self,  source_attrs):
+    def _get_layer_num_for_neuron(self,  source_neurons):
         max_num = 0
-        for attrs in source_attrs.values():
-            num = attrs['layer']
+        for neuron in source_neurons:
+            num = neuron[1]['layer']
             if num > max_num:
                 max_num = num
         return max_num
 
     def _add_event_neuron (self, neurons):
         new_id = self.generator.next()
-        layer_num = self._get_layer_num_for_neuron(neurons.values())
+        layer_num = self._get_layer_num_for_neuron(neurons)
         self.G.add_node(new_id,
                         type = "N",
                         layer = layer_num,
@@ -171,9 +170,9 @@ class RuGraph:
         for field in fields:
             self._add_event_neuron(field)
 
-    def chunks(l, n):
+    def chunks(self, l, n):
         for i in range(0, len(l), n):
-            yield l[i:i + n]
+            yield l.items()[i:i + n]
 
 class RuGraphVisualizer:
     def __init__(self):
@@ -203,3 +202,5 @@ for i in range(10):
     graph.forward_pass(M.A)
 
 graph.print_info()
+n = [i for i in range(10)]
+print len(n)
