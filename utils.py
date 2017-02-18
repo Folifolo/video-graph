@@ -21,7 +21,8 @@ def show_video_gray(videoName):
         return
 
     cap = cv2.VideoCapture(videoName)
-
+    if not cap.isOpened():
+        print "opencv failed to open video, may be ffmpeg is missing?"
     while cap.isOpened():
         ret, frame = cap.read()
         if ret != True:
@@ -68,6 +69,8 @@ def show_first_n_frames(videoName, n):
         return
 
     cap = cv2.VideoCapture(videoName)
+    if not cap.isOpened():
+        print "opencv failed to open video, may be mmpeg is missing?"
     i=0
     while cap.isOpened():
         ret, frame = cap.read()

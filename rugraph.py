@@ -55,11 +55,13 @@ class RuGraph:
 ###########################################################
 ########## Прямое распространение сигнала в графе##########
     def propagate_to_init_layer(self, input_signal):
-        for i in range(input_signal.shape[0]):
-            for j in range(input_signal.shape[1]):
+        rows = input_signal.shape[0]
+        cols = input_signal.shape[1]
+        for i in range(rows):
+            for j in range(cols):
                 n = filter(lambda (n, d): d['index'] == (i,j), self.G.nodes(data=True))
-                id = n[0][0] # фильтр всегда находит один нейрон с такими координатами
-                self.G.node[id]['activation'] = input_signal[i,j]
+                neuron_id = n[0][0] # фильтр всегда находит один нейрон с такими координатами
+                self.G.node[neuron_id]['activation'] = input_signal[i,j]
 
     def get_node_weight(self, node_from, node_to):
         return self.G[node_from][node_to]['weight']
@@ -123,7 +125,7 @@ class RuGraph:
             return False
 
     def get_nodes_in_layer(self, layer_num):
-        return {n: G.node[n] for n in G.nodes() if G.node[n]['layer'] == layer_num}
+        return {n: self.G.node[n] for n in self.G.nodes() if self.G.node[n]['layer'] == layer_num}
 
     def get_most_active_nodes(self, layer_num):
         all_nodes = self.get_nodes_in_layer(layer_num)
@@ -155,11 +157,13 @@ class RuGraph:
     def insert_new_neurons_into_layer(self, layer_num):
         most_active = self.get_most_active_nodes(layer_num - 1)
         rec_field_size = len(most_active) / EPISOD_MAX_SIZE
-        for i in range(EPISOD_MAX_SIZE):
-            pass #TODO
+        fields = list(self.chunks(most_active, rec_field_size))
+        for field in fields:
+            self._add_event_neuron(field)
 
-
-
+    def chunks(l, n):
+        for i in range(0, len(l), n):
+            yield l[i:i + n]
 
 class RuGraphVisualizer:
     def __init__(self):
@@ -181,10 +185,11 @@ class RuGraphVisualizer:
 
 
 print "--------test-------"
-M = utils.generate_sparse_matrix(15,15)
 
 graph = RuGraph()
-graph._add_input_layer( M.A.shape )
-# G = graph.G
-# n = {n: G.node[n] for n in G.nodes() if G.node[n]['type'] == 'S'}
-# print n
+graph._add_input_layer( (15, 15) )
+for i in range(10):
+    M = utils.generate_sparse_matrix(15, 15)
+    graph.forward_pass(M.A)
+
+graph.print_info()
