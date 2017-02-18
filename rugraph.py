@@ -19,7 +19,7 @@ EPISOD_MAX_SIZE = 7
 RECEPTIVE_FIELD_SIZE = 6
 
 #порог "узнавания" сигнала слоем
-THR_RECOGNITION = 0.5
+THR_RECOGNITION = 0.4
 
 #желаемая разреженность
 CODE_DENSITY = 20
@@ -99,16 +99,24 @@ class RuGraph:
             print '   layer ' + str(layer_i) + ": " + str(len(n)) + " nodes;"
 
     def forward_pass(self, input_signal):
-        self.propagate_to_init_layer(input_signal)
-        for layer_i in range(1, self.max_layer + 1):
-            self.propagate_to_layer(layer_i)
-            if self.signal_recognized_by_layer(layer_i):
+
+        for layer_i in range(0, self.max_layer + 1):
+            if layer_i == 0:
+                self.propagate_to_init_layer(input_signal)
+            else:
+                self.propagate_to_layer(layer_i)
+
+            signal_recognized = self.signal_recognized_by_layer(layer_i)
+            if signal_recognized and layer_i != self.max_layer:
                 continue
             else:
+                if not signal_recognized:
                 # если не удалось построить хорошую низкоуровневую
                 # репрезентацию текущего сигнала, то высокоуровневую строить смысла нет
-                self.insert_new_neurons_into_layer(layer_i)
-                break
+                    self.insert_new_neurons_into_layer(layer_i)
+                    break
+                if layer_i == self.max_layer:
+                    self.insert_new_neurons_into_layer(layer_i + 1)
 
     ###########################################################
     ########## Создание мгновенных воспоминаний###############
@@ -117,6 +125,8 @@ class RuGraph:
         return {n : self.get_node_activity(n) for n in self.G.nodes() if self.G.node['layer'] == layer_num}
 
     def signal_recognized_by_layer(self, layer_num):
+        if layer_num == 0:
+            return True
         activity_in_layer = self.get_activations_in_layer(layer_num)
         max_val = max(activity_in_layer.values())
         if max_val > THR_RECOGNITION:
