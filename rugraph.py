@@ -5,7 +5,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import utils
 
-
 # если полезность нейрона ниже пороговой, то удаляем его
 THR_DELETE = 0.2
 
@@ -19,7 +18,7 @@ EPISOD_MAX_SIZE = 7
 RECEPTIVE_FIELD_SIZE = 6
 
 #порог "узнавания" сигнала слоем
-THR_RECOGNITION = 0.4
+THR_RECOGNITION = 0.9
 
 #желаемая разреженность
 CODE_DENSITY = 20
@@ -47,10 +46,11 @@ class RuGraph:
     def _add_input_neuron(self, index):
         n = self.generator.next()
         self.G.add_node(n,
-                        type = "S",
-                        layer = 0,
-                        activation = 0,
-                        index = index
+                        type="S",
+                        layer=0,
+                        activation=0,
+                        index=index,
+                        isInput=True
                         )
 ###########################################################
 ########## Прямое распространение сигнала в графе##########
@@ -59,15 +59,16 @@ class RuGraph:
         cols = input_signal.shape[1]
         for i in range(rows):
             for j in range(cols):
-                n = filter(lambda (n, d): d['index'] == (i,j), self.G.nodes(data=True))
-                neuron_id = n[0][0] # фильтр всегда находит один нейрон с такими координатами
+                input_neurons = {i:self.G.node[i] for i in self.G.nodes() if self.G.node[i]['layer'] == 0}
+                c = [(n, attr) for n, attr in input_neurons.items() if attr['index'] == (i,j)]
+                neuron_id = c[0][0] # фильтр всегда находит один нейрон с такими координатами
                 self.G.node[neuron_id]['activation'] = input_signal[i,j]
 
     def get_node_weight(self, node_from, node_to):
         return self.G[node_from][node_to]['weight']
 
     def get_node_activity(self, id):
-        return self.G.node[id]['activity']
+        return self.G.node[id]['activation']
 
     def neuron_recognition_rate(self, input_signal, weights):
         return np.cos(input_signal, weights) # число из [0,1]
@@ -87,8 +88,8 @@ class RuGraph:
         self.G.remove_node(id)
 
     def propagate_to_layer(self, layer_num):
-        for (n, attr) in self.G.nodes():
-            if attr['layer'] == layer_num:
+        for n in self.G.nodes():
+            if self.G.node[n]['layer'] == layer_num:
                 self.propagate_to_neuron(n)
 
     def print_info(self):
@@ -121,7 +122,7 @@ class RuGraph:
     ########## Создание мгновенных воспоминаний###############
 
     def get_activations_in_layer(self, layer_num):
-        return {n : self.get_node_activity(n) for n in self.G.nodes() if self.G.node['layer'] == layer_num}
+        return {n: self.get_node_activity(n) for n in self.G.nodes() if self.G.node[n]['layer'] == layer_num}
 
     def signal_recognized_by_layer(self, layer_num):
         if layer_num == 0:
@@ -148,24 +149,25 @@ class RuGraph:
             num = neuron[1]['layer']
             if num > max_num:
                 max_num = num
-        return max_num
+        return max_num + 1
 
     def _add_event_neuron (self, neurons):
         new_id = self.generator.next()
         layer_num = self._get_layer_num_for_neuron(neurons)
         self.G.add_node(new_id,
-                        type = "N",
-                        layer = layer_num,
-                        activation = 1
+                        type="N",
+                        layer=layer_num,
+                        activation=1
                         )
         if layer_num > self.max_layer:
             self.max_layer = layer_num
         for n, attr in neurons:
             self.G.add_edge(n, new_id, weight=attr['activation'])
+        print "addaed neuron " + str(layer_num) + " " + str(new_id)
 
     def insert_new_neurons_into_layer(self, layer_num):
         most_active = self.get_most_active_nodes(layer_num - 1)
-        rec_field_size = len(most_active) / EPISOD_MAX_SIZE
+        rec_field_size = len(most_active) / EPISOD_MAX_SIZE #TODO бывает ноль!!!
         fields = list(self.chunks(most_active, rec_field_size))
         for field in fields:
             self._add_event_neuron(field)
