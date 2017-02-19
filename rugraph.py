@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*
 import itertools
+import math
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import utils
-
-# если полезность нейрона ниже пороговой, то удаляем его
-THR_DELETE = 0.2
-
-# на сколько за один такт затухает кратковременная память о событии
-SALIENCY_FADING_PER_TIME = 0.1
 
 #сколькими новыми узлами кодировать новое мгновеное восприминание
 EPISOD_MAX_SIZE = 7
@@ -20,9 +15,6 @@ RECEPTIVE_FIELD_SIZE = 6
 #порог "узнавания" сигнала слоем
 THR_RECOGNITION = 0.9
 
-#желаемая разреженность
-CODE_DENSITY = 20
-
 class GraphError(Exception):
     def __init__(self, value):
         self.value = value
@@ -31,7 +23,7 @@ class GraphError(Exception):
 
 
 class RuGraph:
-    def __init__(self, log = True):
+    def __init__(self, log=True):
         self.G = nx.DiGraph()
         self.generator = itertools.count(0)
         self.max_layer = -1
@@ -110,10 +102,11 @@ class RuGraph:
             if signal_recognized and layer_i != self.max_layer:
                 continue
             else:
-                if not signal_recognized:
                 # если не удалось построить хорошую низкоуровневую
                 # репрезентацию текущего сигнала, то высокоуровневую строить смысла нет
-                    self.insert_new_neurons_into_layer(layer_i)
+                if not signal_recognized:
+                    if layer_i != 0:
+                        self.insert_new_neurons_into_layer(layer_i)
                     break
                 if layer_i == self.max_layer:
                     self.insert_new_neurons_into_layer(layer_i + 1)
@@ -125,8 +118,6 @@ class RuGraph:
         return {n: self.get_node_activity(n) for n in self.G.nodes() if self.G.node[n]['layer'] == layer_num}
 
     def signal_recognized_by_layer(self, layer_num):
-        if layer_num == 0:
-            return True
         activity_in_layer = self.get_activations_in_layer(layer_num)
         max_val = max(activity_in_layer.values())
         if max_val > THR_RECOGNITION:
@@ -139,7 +130,10 @@ class RuGraph:
 
     def get_most_active_nodes(self, layer_num):
         all_nodes = self.get_nodes_in_layer(layer_num)
-        #active_nodes = (node, attr for node,attr in all_nodes if attr['activation'] > THR_RECOGNITION)
+        if len(all_nodes) == 0:
+            raise GraphError("unexpected empty layer")
+        #узлы слоя в порядке убывания текущей активности
+        #sorted_nodes = sorted(all_nodes.items(), key=lambda x: x[1]['activation'], reverse=True)
         active_nodes = {node:attr for node,attr in all_nodes.items() if attr['activation'] > THR_RECOGNITION}
         return active_nodes
 
@@ -163,12 +157,16 @@ class RuGraph:
             self.max_layer = layer_num
         for n, attr in neurons:
             self.G.add_edge(n, new_id, weight=attr['activation'])
-        print "addaed neuron " + str(layer_num) + " " + str(new_id)
 
     def insert_new_neurons_into_layer(self, layer_num):
+        if layer_num == 0:
+            raise GraphError ('attempt to insert new receptors')
         most_active = self.get_most_active_nodes(layer_num - 1)
-        rec_field_size = len(most_active) / EPISOD_MAX_SIZE #TODO бывает ноль!!!
-        fields = list(self.chunks(most_active, rec_field_size))
+        lenght = len(most_active)
+        if lenght == 0:
+            raise GraphError('attempt to insert new neuron without proper input field')
+        rec_field_size = math.ceil(float(lenght) / float(EPISOD_MAX_SIZE))
+        fields = list(self.chunks(most_active, int(rec_field_size) ))
         for field in fields:
             self._add_event_neuron(field)
 
@@ -196,13 +194,12 @@ class RuGraphVisualizer:
 
 
 print "--------test-------"
-
 graph = RuGraph()
-graph._add_input_layer( (15, 15) )
-for i in range(10):
-    M = utils.generate_sparse_matrix(15, 15)
+graph._add_input_layer((5, 5))
+for i in range(20):
+    print "forward pass:"
+    M = utils.generate_sparse_matrix(5, 5)
     graph.forward_pass(M.A)
 
 graph.print_info()
-n = [i for i in range(10)]
-print len(n)
+
