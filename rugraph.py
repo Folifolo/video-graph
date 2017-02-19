@@ -3,8 +3,6 @@ import itertools
 import math
 import numpy as np
 import networkx as nx
-import matplotlib.pyplot as plt
-import utils
 
 #сколькими новыми узлами кодировать новое мгновеное восприминание
 EPISOD_MAX_SIZE = 7
@@ -173,33 +171,4 @@ class RuGraph:
     def chunks(self, l, n):
         for i in range(0, len(l), n):
             yield l.items()[i:i + n]
-
-class RuGraphVisualizer:
-    def __init__(self):
-        pass
-
-    def draw_graph(self, G):
-        pass
-
-    def draw_input_layer_with_act(self, G):
-        input = nx.get_node_attributes(G, 'index')
-        ids = input.keys()
-        positions = input.values()
-        colors = []
-        for n in ids:
-            colors.append(G.node[n]['activation'])
-
-        plt.set_cmap(plt.cm.get_cmap('Blues'))
-        nx.draw_networkx_nodes(G, nodelist=ids, pos=positions, node_color=colors)
-
-
-print "--------test-------"
-graph = RuGraph()
-graph._add_input_layer((5, 5))
-for i in range(20):
-    print "forward pass:"
-    M = utils.generate_sparse_matrix(5, 5)
-    graph.forward_pass(M.A)
-
-graph.print_info()
 
