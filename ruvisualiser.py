@@ -5,8 +5,9 @@ class RuGraphVisualizer:
     def __init__(self):
         pass
 
-    def draw_graph(self, G):
-        pass
+    def draw_graph(self, graph):
+        nx.draw_spring(graph.G)
+        plt.show()
 
     def draw_input_layer_with_act(self, G):
         input = nx.get_node_attributes(G, 'index')

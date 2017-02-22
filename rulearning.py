@@ -11,3 +11,5 @@ for i in range(20):
     graph.forward_pass(M.A)
 
 graph.print_info()
+vis = ruv.RuGraphVisualizer()
+vis.draw_graph(graph)
