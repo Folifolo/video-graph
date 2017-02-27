@@ -7,6 +7,8 @@ import networkx as nx
 
 #константы алгоритма
 NEIGHBORHOOD_RADUIS = 4
+DESIRED_NUMBER_ENTRYES_PER_OUTCOME = 20
+DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 
 # аттрибуты узла
 #  input - сумма взвешенных входных сигналов
@@ -24,6 +26,37 @@ class GraphError(Exception):
     def __str__(self):
         return repr(self.value)
 
+class DataAccumulator:
+    def __init__(self, ids):
+        self.ids = []
+        self.outcomes_entries = {}
+
+    def add_new_entry(self, node_id, G, outcome_id):
+        if len(self.ids) == 0:
+            self.ids = nx.single_source_shortest_path_length(G, node_id, cutoff=NEIGHBORHOOD_RADUIS).keys()
+        entry = []
+        for i in self.ids:
+            entry.append(G.node[i]['activation'])
+        assert len(entry) == len(self.ids), 'topology changed since the last usage of accumulator, and accum was not erased'
+        self.outcomes_entries[outcome_id].append(entry)
+
+    def _get_good_outcomes(self):
+        outcomes = self.outcomes_entries.keys()
+        good_outcomes = []
+        for outcome in outcomes:
+            if len(self.outcomes_entries[outcome]) >= DESIRED_NUMBER_ENTRYES_PER_OUTCOME:
+                good_outcomes.append(outcome)
+        return
+
+    def isReadyForConsolidation(self):
+        good_outcomes=  self._get_good_outcomes()
+        if len(good_outcomes) >= DESIRED_NUMBER_OF_GOOD_OUTCOMES:
+            return True
+        return False
+
+    def getTrainingData(self):
+        good_outcomes = self._get_good_outcomes()
+        #TODO
 
 class RuGraph:
     def __init__(self, input_shape, log=True):
@@ -108,10 +141,8 @@ class RuGraph:
     def activation_function(self, x):
         return 1 / (1 + math.exp(-x))  # sigmoid
 
-#################### функционал аккумуляторов данных####################
 
-    def get_node_neightborhood(self, node):
-        return nx.single_source_shortest_path_length(self.G, node, cutoff=NEIGHBORHOOD_RADUIS).keys()
+
 
 
 
