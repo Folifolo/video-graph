@@ -32,14 +32,22 @@ class RuGraph:
             for j in range(shape[1]):
                 self._add_input_neuron((i,j))
         self.max_layer = 0
+        edges = []
+        # соединим внтри строк
+        for i in range(shape[0]):
+            for j in range(shape[1] - 1):
+                edges.append(((i, j), (i, j + 1)))
+        # соединим внтри столбцов
+        for j in range(shape[1]):
+            for i in range(shape[0] - 1):
+                edges.append(((i, j), (i + 1, j)))
+        self.G.add_edges_from(edges, weight=1, undir=True)
 
     def _add_input_neuron(self, index):
-        n = self.generator.next()
-        self.G.add_node(n,
+        self.G.add_node(index,
                         type="S",
                         layer=0,
                         activation=0,
-                        index=index,
                         isInput=True
                         )
 ###########################################################
@@ -49,10 +57,7 @@ class RuGraph:
         cols = input_signal.shape[1]
         for i in range(rows):
             for j in range(cols):
-                input_neurons = {i:self.G.node[i] for i in self.G.nodes() if self.G.node[i]['layer'] == 0}
-                c = [(n, attr) for n, attr in input_neurons.items() if attr['index'] == (i,j)]
-                neuron_id = c[0][0] # фильтр всегда находит один нейрон с такими координатами
-                self.G.node[neuron_id]['activation'] = input_signal[i,j]
+                self.G.node[(i,j)]['activation'] = input_signal[i,j]
 
     def get_node_weight(self, node_from, node_to):
         return self.G[node_from][node_to]['weight']
@@ -172,3 +177,6 @@ class RuGraph:
         for i in range(0, len(l), n):
             yield l.items()[i:i + n]
 
+
+    def get_neighborhood_state(self, node, neighborhood_radius):
+        return nx.single_source_shortest_path_length(self.G, node, cutoff=neighborhood_radius)
