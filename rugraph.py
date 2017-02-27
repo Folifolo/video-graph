@@ -27,9 +27,10 @@ class GraphError(Exception):
         return repr(self.value)
 
 class DataAccumulator:
-    def __init__(self, ids):
+    def __init__(self, ids, id):
         self.ids = []
         self.outcomes_entries = {}
+        self.id = id
 
     def add_new_entry(self, node_id, G, outcome_id):
         if len(self.ids) == 0:
@@ -115,7 +116,6 @@ class RuGraph:
         for n in sinks:
             self.G.node[n]['input'] = 0
             self.G.node[n]['waiting_inputs'] = self.number_of_feed_inputs(n)
-
         while len(sources) != 0:
             source = sources.popleft()
             activation = self.G.node[source]['activation']
@@ -128,7 +128,6 @@ class RuGraph:
                     sinks.remove[target]
                     sources.append(target)
                     self.G.node[target]['activation'] = self.activation_function(self.G.node[target]['input'])
-
         assert len(sinks) == 0 and len(sources) == 0, "sources and sinks must become empty at the end of propagation, but they did not"
         self.log("propagation done")
 
@@ -140,6 +139,20 @@ class RuGraph:
 
     def activation_function(self, x):
         return 1 / (1 + math.exp(-x))  # sigmoid
+
+    def find_smth_to_consolidate(self):
+        #TODO
+        return None
+
+    def consolidate(self, accumalator):
+        data = accumalator.getgetTrainingData()
+        #TODO
+
+    def process_next_input(self, input_signal):
+        self.propagate(input_signal)
+        accumulator = self.find_smth_to_consolidate()
+        if accumulator != None:
+            self.consolidate(accumulator)
 
 
 
