@@ -1,17 +1,22 @@
 # -*- coding: utf-8 -*
 import itertools
 import math
+from collections import deque
 import numpy as np
 import networkx as nx
 
-#сколькими новыми узлами кодировать новое мгновеное восприминание
-EPISOD_MAX_SIZE = 7
+#константы алгоритма
+NEIGHBORHOOD_RADUIS = 4
 
-# размер рецептивного поля
-RECEPTIVE_FIELD_SIZE = 6
+# аттрибуты узла
+#  input - сумма взвешенных входных сигналов
+#  activation - результат применения нелинейности к инпуту
+#  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
 
-#порог "узнавания" сигнала слоем
-THR_RECOGNITION = 0.9
+# аттрибуты ребра
+#  weight
+#  type: contextual, predict, feed
+
 
 class GraphError(Exception):
     def __init__(self, value):
@@ -21,162 +26,94 @@ class GraphError(Exception):
 
 
 class RuGraph:
-    def __init__(self, log=True):
+    def __init__(self, input_shape, log=True):
         self.G = nx.DiGraph()
         self.generator = itertools.count(0)
         self.max_layer = -1
         self.log_enabled = log
+        self.input_shape = input_shape
+        self._create_input_layer()
 
-    def _add_input_layer (self, shape):
-        for i in range(shape[0]):
-            for j in range(shape[1]):
+    def _create_input_layer (self):
+        rows, cols = self.input_shape[0], self.input_shape[1]
+        for i in range(rows):
+            for j in range(cols):
                 self._add_input_neuron((i,j))
         self.max_layer = 0
         edges = []
-        # соединим внтри строк
-        for i in range(shape[0]):
-            for j in range(shape[1] - 1):
+        # соединим внуутри строк
+        for i in range( rows):
+            for j in range(cols - 1):
                 edges.append(((i, j), (i, j + 1)))
-        # соединим внтри столбцов
-        for j in range(shape[1]):
-            for i in range(shape[0] - 1):
+        # соединим внутри столбцов
+        for j in range(cols):
+            for i in range( rows - 1):
                 edges.append(((i, j), (i + 1, j)))
-        self.G.add_edges_from(edges, weight=1, undir=True)
+        self.G.add_edges_from(edges, weight=1, type='contextual')
 
     def _add_input_neuron(self, index):
         self.G.add_node(index,
-                        type="S",
-                        layer=0,
                         activation=0,
                         isInput=True
                         )
-###########################################################
-########## Прямое распространение сигнала в графе##########
-    def propagate_to_init_layer(self, input_signal):
+
+    def init_sensors(self, input_signal):
+        assert input_signal.shape() == self.input_shape(), "input signal has unexpected shape"
         rows = input_signal.shape[0]
         cols = input_signal.shape[1]
         for i in range(rows):
             for j in range(cols):
                 self.G.node[(i,j)]['activation'] = input_signal[i,j]
 
-    def get_node_weight(self, node_from, node_to):
-        return self.G[node_from][node_to]['weight']
-
-    def get_node_activity(self, id):
-        return self.G.node[id]['activation']
-
-    def neuron_recognition_rate(self, input_signal, weights):
-        return np.cos(input_signal, weights) # число из [0,1]
-
-    def propagate_to_neuron(self, id):
-        sources = self.G.predecessors(id)
-        if len(sources) == 0:
-            raise GraphError("Neuron has no input connections")
-        input_activities = np.zeros (len(sources))
-        input_weights = np.zeros (len(sources))
-        for i in range (len(sources)):
-            input_weights[i] = self.get_node_weight(sources[i], id)
-            input_activities[i] = self.get_node_activity(sources[i])
-        self.G.node[id]['activity'] = self.neuron_recognition_rate(input_activities, input_weights)
-
-    def delete_neuron(self, id):
-        self.G.remove_node(id)
-
-    def propagate_to_layer(self, layer_num):
-        for n in self.G.nodes():
-            if self.G.node[n]['layer'] == layer_num:
-                self.propagate_to_neuron(n)
-
     def print_info(self):
-        print "Number of layers: " + str(self.max_layer + 1)
-        print "Number of edges: " + str (self.G.number_of_edges())
-        for layer_i in range(self.max_layer + 1):
-            n = [n for n in self.G.nodes() if self.G.node[n]['layer'] == layer_i]
-            print '   layer ' + str(layer_i) + ": " + str(len(n)) + " nodes;"
+        print "Max level: " + str(self.max_layer + 1)
+        print "Number of edges: " + str(self.G.number_of_edges())
 
-    def forward_pass(self, input_signal):
-        for layer_i in range(0, self.max_layer + 1):
-            if layer_i == 0:
-                self.propagate_to_init_layer(input_signal)
-            else:
-                self.propagate_to_layer(layer_i)
+    def log(self, message):
+        if self.log_enabled:
+            print "rugraph msg: "+ message
 
-            signal_recognized = self.signal_recognized_by_layer(layer_i)
-            if signal_recognized and layer_i != self.max_layer:
-                continue
-            else:
-                # если не удалось построить хорошую низкоуровневую
-                # репрезентацию текущего сигнала, то высокоуровневую строить смысла нет
-                if not signal_recognized:
-                    if layer_i != 0:
-                        self.insert_new_neurons_into_layer(layer_i)
-                    break
-                if layer_i == self.max_layer:
-                    self.insert_new_neurons_into_layer(layer_i + 1)
+    def propagate(self, input_signal):
+        self.init_sensors(input_signal)
+        sources = deque(self.get_sensors())
+        sinks = [n for n in self.G.nodes() if self.G.node[n] not in sources]
+        # поля input и waiting_inputs нужны только для прямого распространения,
+        # надо их очистить от значений с прошлых выховов этий функции
+        for n in sinks:
+            self.G.node[n]['input'] = 0
+            self.G.node[n]['waiting_inputs'] = self.number_of_feed_inputs(n)
 
-    ###########################################################
-    ########## Создание мгновенных воспоминаний###############
+        while len(sources) != 0:
+            source = sources.popleft()
+            activation = self.G.node[source]['activation']
+            for target in self.G.successors(source):  # рассылаем от узла сигнал ко всем адрессатам
+                w = self.G.edge[source][target]['weight']
+                self.G.node[target]['input'] += activation*w
+                if self.G.node[target]['waiting_inputs'] > 1:
+                    self.G.node[target]['waiting_inputs'] -= 1
+                else:  # этот узел получил данные ото всех, и может теперь сам становиться источником сигнала
+                    sinks.remove[target]
+                    sources.append(target)
+                    self.G.node[target]['activation'] = self.activation_function(self.G.node[target]['input'])
 
-    def get_activations_in_layer(self, layer_num):
-        return {n: self.get_node_activity(n) for n in self.G.nodes() if self.G.node[n]['layer'] == layer_num}
+        assert len(sinks) == 0 and len(sources) == 0, "sources and sinks must become empty at the end of propagation, but they did not"
+        self.log("propagation done")
 
-    def signal_recognized_by_layer(self, layer_num):
-        activity_in_layer = self.get_activations_in_layer(layer_num)
-        max_val = max(activity_in_layer.values())
-        if max_val > THR_RECOGNITION:
-            return True
-        else:
-            return False
+    def get_sensors_ids(self):
+        return [n for n in self.G.nodes() if self.G.node[n]['isInput'] is True]
 
-    def get_nodes_in_layer(self, layer_num):
-        return {n: self.G.node[n] for n in self.G.nodes() if self.G.node[n]['layer'] == layer_num}
+    def number_of_feed_inputs(self, node):
+        return len ([pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['type'] == 'feed'])
 
-    def get_most_active_nodes(self, layer_num):
-        all_nodes = self.get_nodes_in_layer(layer_num)
-        if len(all_nodes) == 0:
-            raise GraphError("unexpected empty layer")
-        #узлы слоя в порядке убывания текущей активности
-        #sorted_nodes = sorted(all_nodes.items(), key=lambda x: x[1]['activation'], reverse=True)
-        active_nodes = {node:attr for node,attr in all_nodes.items() if attr['activation'] > THR_RECOGNITION}
-        return active_nodes
+    def activation_function(self, x):
+        return 1 / (1 + math.exp(-x))  # sigmoid
 
-    def _get_layer_num_for_neuron(self,  source_neurons):
-        max_num = 0
-        for neuron in source_neurons:
-            num = neuron[1]['layer']
-            if num > max_num:
-                max_num = num
-        return max_num + 1
+#################### функционал аккумуляторов данных####################
 
-    def _add_event_neuron (self, neurons):
-        new_id = self.generator.next()
-        layer_num = self._get_layer_num_for_neuron(neurons)
-        self.G.add_node(new_id,
-                        type="N",
-                        layer=layer_num,
-                        activation=1
-                        )
-        if layer_num > self.max_layer:
-            self.max_layer = layer_num
-        for n, attr in neurons:
-            self.G.add_edge(n, new_id, weight=attr['activation'])
-
-    def insert_new_neurons_into_layer(self, layer_num):
-        if layer_num == 0:
-            raise GraphError ('attempt to insert new receptors')
-        most_active = self.get_most_active_nodes(layer_num - 1)
-        lenght = len(most_active)
-        if lenght == 0:
-            raise GraphError('attempt to insert new neuron without proper input field')
-        rec_field_size = math.ceil(float(lenght) / float(EPISOD_MAX_SIZE))
-        fields = list(self.chunks(most_active, int(rec_field_size) ))
-        for field in fields:
-            self._add_event_neuron(field)
-
-    def chunks(self, l, n):
-        for i in range(0, len(l), n):
-            yield l.items()[i:i + n]
+    def get_node_neightborhood(self, node):
+        return nx.single_source_shortest_path_length(self.G, node, cutoff=NEIGHBORHOOD_RADUIS).keys()
 
 
-    def get_neighborhood_state(self, node, neighborhood_radius):
-        return nx.single_source_shortest_path_length(self.G, node, cutoff=neighborhood_radius)
+
+
+
