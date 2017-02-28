@@ -21,7 +21,6 @@ DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 #  weight
 #  type: contextual, predict, feed
 
-
 class GraphError(Exception):
     def __init__(self, value):
         self.value = value
@@ -90,8 +89,28 @@ class RuGraph:
     def _add_input_neuron(self, index):
         self.G.add_node(index,
                         activation=0,
-                        type=input,
+                        type='input',
                         )
+
+    def add_new_node(self):
+        node_id = self.generator.next()
+        self.G.add_node(node_id,
+                    activation=0,
+                    type='plane',
+                    input=0,
+                    waiting_inputs=0
+                    )
+        return node_id
+
+    def connect_input_weights_to_node(self, node_id, source_nodes_ids, weights, type_of_weights):
+        for j in range(len(source_nodes_ids)):
+            weight = weights[j]
+            self.G.add_edge(source_nodes_ids[j], node_id, weight=weight, type=type_of_weights )
+
+    def connect_output_weights_to_node(self, node_id, target_nodes_ids, weights, type_of_weights):
+        for j in (len(target_nodes_ids)):
+            weight = weights[j]
+            self.G.add_edges_from(node_id, target_nodes_ids[j], weight=weight, type=type_of_weights)
 
     def init_sensors(self, input_signal):
         assert input_signal.shape() == self.input_shape(), "input signal has unexpected shape"
@@ -148,9 +167,17 @@ class RuGraph:
     def activation_function(self, x):
         return 1 / (1 + math.exp(-x))  # sigmoid
 
-    def find_smth_to_consolidate(self):
-        #TODO
+    def find_accumalator_to_consolidate(self):
+        # TODO
         return None
+
+    def update_accumulators(self):
+        # TODO
+        pass
+
+    def update_predictions(self):
+        # TODO
+        pass
 
     def consolidate(self, accumulator):
         consolidation = ruc.RuConsolidator(accumulator)
@@ -159,16 +186,30 @@ class RuGraph:
             W1, W2 = consolidation.get_trained_weights()
             source_nodes = accumulator.get_source_nodes()
             sink_nodes = accumulator.get_sink_nodes()
-            self.add_new_neurons(W1, W2, source_nodes, sink_nodes)
+            self.add_new_nodes(W1, W2, source_nodes, sink_nodes)
             return success
         return False #консолидация не удалась
 
-    def add_new_neurons(self, W1, W2, source_nodes, sink_nodes):
-        pass
+    def add_new_nodes(self, W1, W2, source_nodes, sink_nodes):
+        assert W1.shape()[0] == W2.shape()[1], 'shapes of matrixes input-to-hidden and hidden-to-output are inconsistent'
+        assert len(source_nodes) != 0 and len(sink_nodes) != 0, 'attempt to insert a node without connections'
+        num_of_hidden_units = W1.shape()[0]
+        for i in range(num_of_hidden_units):
+            node_id = self.add_new_node()
+            self.connect_input_weights_to_node(node_id,
+                                               source_nodes_ids=source_nodes,
+                                               weights=W1[:,i],
+                                               type_of_weights='feed')
+            self.connect_output_weights_to_node(node_id,
+                                                target_nodes_ids=sink_nodes,
+                                                weights=W2[i,:],
+                                                type_of_weights='predict')
 
     def process_next_input(self, input_signal):
         self.propagate(input_signal)
-        accumulator = self.find_smth_to_consolidate()
+        self.update_accumulators()
+        self.update_predictions()
+        accumulator = self.find_accumalator_to_consolidate()
         if accumulator is not None:
             success = self.consolidate(accumulator)
             if success:

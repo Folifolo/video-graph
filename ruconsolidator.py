@@ -10,10 +10,12 @@ CUSCCESS_THRESHOLD = 0.8 #при какой точности распознав�
 
 class RuConsolidator:
     def __init__(self, accumulator):
-        pass
+        self.shape_of_input
+        self.shape_of_hidden
+        self.shape_of_output
 
     def build_model(self):
-        pass
+        nonlinearity = lasagne.nonlinearities.sigmoid
 
     def consolidate(self):
         success = False
