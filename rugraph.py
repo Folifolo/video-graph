@@ -14,6 +14,7 @@ DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 #  input - сумма взвешенных входных сигналов
 #  activation - результат применения нелинейности к инпуту
 #  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
+#  type = input, accum, plane
 
 # аттрибуты ребра
 #  weight
@@ -88,7 +89,7 @@ class RuGraph:
     def _add_input_neuron(self, index):
         self.G.add_node(index,
                         activation=0,
-                        isInput=True
+                        type=input,
                         )
 
     def init_sensors(self, input_signal):
@@ -132,7 +133,13 @@ class RuGraph:
         self.log("propagation done")
 
     def get_sensors_ids(self):
-        return [n for n in self.G.nodes() if self.G.node[n]['isInput'] is True]
+        return [n for n in self.G.nodes() if self.G.node[n]['type'] == 'input']
+
+    def get_accumulators_ids(self):
+        return [n for n in self.G.nodes() if self.G.node[n]['type'] == 'accumulator']
+
+    def delete_accumulators(self):
+        pass
 
     def number_of_feed_inputs(self, node):
         return len ([pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['type'] == 'feed'])
@@ -146,13 +153,15 @@ class RuGraph:
 
     def consolidate(self, accumalator):
         data = accumalator.getgetTrainingData()
-        #TODO
+        return False
 
     def process_next_input(self, input_signal):
         self.propagate(input_signal)
         accumulator = self.find_smth_to_consolidate()
         if accumulator != None:
-            self.consolidate(accumulator)
+            success = self.consolidate(accumulator)
+            if success:
+                self.delete_accumulators()
 
 
 
