@@ -21,11 +21,14 @@ DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 #  weight
 #  type: contextual, predict, feed
 
+
 class GraphError(Exception):
     def __init__(self, value):
         self.value = value
+
     def __str__(self):
         return repr(self.value)
+
 
 class DataAccumulator:
     def __init__(self, ids, id):
@@ -50,8 +53,8 @@ class DataAccumulator:
                 good_outcomes.append(outcome)
         return
 
-    def isReadyForConsolidation(self):
-        good_outcomes=  self._get_good_outcomes()
+    def is_ready_for_consolidation(self):
+        good_outcomes = self._get_good_outcomes()
         if len(good_outcomes) >= DESIRED_NUMBER_OF_GOOD_OUTCOMES:
             return True
         return False
@@ -59,6 +62,7 @@ class DataAccumulator:
     def getTrainingData(self):
         good_outcomes = self._get_good_outcomes()
         #TODO
+
 
 class RuGraph:
     def __init__(self, input_shape, log=True):
@@ -130,7 +134,7 @@ class RuGraph:
 
     def propagate(self, input_signal):
         self.init_sensors(input_signal)
-        sources = deque(self.get_sensors())
+        sources = deque(self.get_nodes_of_type('input'))
         sinks = [n for n in self.G.nodes() if self.G.node[n] not in sources]
         # поля input и waiting_inputs нужны только для прямого распространения,
         # надо их очистить от значений с прошлых выховов этий функции
@@ -152,14 +156,13 @@ class RuGraph:
         assert len(sinks) == 0 and len(sources) == 0, "sources and sinks must become empty at the end of propagation, but they did not"
         self.log("propagation done")
 
-    def get_sensors_ids(self):
-        return [n for n in self.G.nodes() if self.G.node[n]['type'] == 'input']
-
-    def get_accumulators_ids(self):
-        return [n for n in self.G.nodes() if self.G.node[n]['type'] == 'accumulator']
+    def get_nodes_of_type(self, node_type):
+        return [n for n in self.G.nodes() if self.G.node[n]['type'] == node_type]
 
     def delete_accumulators(self):
-        pass
+        accumulators = self.get_nodes_of_type('accumulator')
+        for node_id in accumulators:
+            self.G.remove_node(node_id)
 
     def number_of_feed_inputs(self, node):
         return len ([pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['type'] == 'feed'])
@@ -167,9 +170,12 @@ class RuGraph:
     def activation_function(self, x):
         return 1 / (1 + math.exp(-x))  # sigmoid
 
-    def find_accumalator_to_consolidate(self):
-        # TODO
-        return None
+    def find_accumulator_to_consolidate(self):
+        accs = self.get_nodes_of_type('accumulator')
+        good_accs = itertools.ifilter(lambda acc: acc.is_ready_for_consolidation(), accs)
+        if len(good_accs) == 0:
+            return None
+        return good_accs[0] # подходит любой из них
 
     def update_accumulators(self):
         # TODO
@@ -209,7 +215,7 @@ class RuGraph:
         self.propagate(input_signal)
         self.update_accumulators()
         self.update_predictions()
-        accumulator = self.find_accumalator_to_consolidate()
+        accumulator = self.find_accumulator_to_consolidate()
         if accumulator is not None:
             success = self.consolidate(accumulator)
             if success:
