@@ -4,6 +4,7 @@ import math
 from collections import deque
 import numpy as np
 import networkx as nx
+import ruconsolidator as ruc
 
 #константы алгоритма
 NEIGHBORHOOD_RADUIS = 4
@@ -151,14 +152,24 @@ class RuGraph:
         #TODO
         return None
 
-    def consolidate(self, accumalator):
-        data = accumalator.getgetTrainingData()
-        return False
+    def consolidate(self, accumulator):
+        consolidation = ruc.RuConsolidator(accumulator)
+        success = consolidation.consolidate()
+        if success:
+            W1, W2 = consolidation.get_trained_weights()
+            source_nodes = accumulator.get_source_nodes()
+            sink_nodes = accumulator.get_sink_nodes()
+            self.add_new_neurons(W1, W2, source_nodes, sink_nodes)
+            return success
+        return False #консолидация не удалась
+
+    def add_new_neurons(self, W1, W2, source_nodes, sink_nodes):
+        pass
 
     def process_next_input(self, input_signal):
         self.propagate(input_signal)
         accumulator = self.find_smth_to_consolidate()
-        if accumulator != None:
+        if accumulator is not None:
             success = self.consolidate(accumulator)
             if success:
                 self.delete_accumulators()
