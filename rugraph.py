@@ -17,6 +17,7 @@ DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 #  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
 #  type = input, accum, plane
 #  has_predict_edges - исходят ли из него хоть одно ребро типа predict (чтоб не перебирать каждый раз всех исходящих)
+#  bias
 
 # аттрибуты ребра
 #  weight
@@ -105,14 +106,15 @@ class RuGraph:
                         has_predict_edges=False
                         )
 
-    def add_new_node(self):
+    def add_new_node(self, bias=0):
         node_id = self.generator.next()
         self.G.add_node(node_id,
                     activation=0,
                     type='plane',
                     input=0,
                     waiting_inputs=0,
-                    has_predict_edges=False
+                    has_predict_edges=False,
+                    bias=bias
                     )
         return node_id
 
@@ -164,7 +166,8 @@ class RuGraph:
                 else:  # этот узел получил данные ото всех, и может теперь сам становиться источником сигнала
                     sinks.remove[target]
                     sources.append(target)
-                    self.G.node[target]['activation'] = self.activation_function(self.G.node[target]['input'])
+                    input_to_activation = self.G.node[target]['input']+self.G.node['bias']
+                    self.G.node[target]['activation'] = self.activation_function(input_to_activation)
         assert len(sinks) == 0 and len(sources) == 0, \
             "sources and sinks must become empty at the end of propagation, but they did not"
         self.log("propagation done")
@@ -209,19 +212,22 @@ class RuGraph:
         consolidation = ruc.RuConsolidator(accumulator)
         success = consolidation.consolidate()
         if success:
-            W1, W2 = consolidation.get_trained_weights()
+            W1, W2, b1, b2 = consolidation.get_trained_weights()
             source_nodes = accumulator.get_source_nodes()
             sink_nodes = accumulator.get_sink_nodes()
-            self.add_new_nodes(W1, W2, source_nodes, sink_nodes)
+            self.add_new_nodes(W1, W2, b1, b2, source_nodes, sink_nodes)
             return success
         return False #консолидация не удалась
 
-    def add_new_nodes(self, W1, W2, source_nodes, sink_nodes):
-        assert W1.shape()[0] == W2.shape()[1], 'shapes of matrixes input-to-hidden and hidden-to-output are inconsistent'
+    def add_new_nodes(self, W1, W2, b1, b2, source_nodes, sink_nodes):
+        assert W1 is not None and W2 is not None and b1 is not None and b2 is not None, 'corrupted consolidation'
+        assert W1.shape()[0] == W2.shape()[1], \
+            'shapes of matrices input-to-hidden and hidden-to-output are inconsistent'
         assert len(source_nodes) != 0 and len(sink_nodes) != 0, 'attempt to insert a node without connections'
         num_of_hidden_units = W1.shape()[0]
+        assert len(b1) == num_of_hidden_units, 'biases vector is inconstent with neurons number'
         for i in range(num_of_hidden_units):
-            node_id = self.add_new_node()
+            node_id = self.add_new_node(bias=b1[i])
             self.connect_input_weights_to_node(node_id,
                                                source_nodes_ids=source_nodes,
                                                weights=W1[:,i],
@@ -230,6 +236,8 @@ class RuGraph:
                                                 target_nodes_ids=sink_nodes,
                                                 weights=W2[i,:],
                                                 type_of_weights='predict')
+        for i in range(len(sink_nodes)):
+            self.G.node[sink_nodes[i]]['bias']=b2[i]
 
     def process_next_input(self, input_signal):
         self.propagate(input_signal)
