@@ -16,10 +16,12 @@ DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 #  activation - результат применения нелинейности к инпуту
 #  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
 #  type = input, accum, plane
+#  has_predict_edges - исходят ли из него хоть одно ребро типа predict (чтоб не перебирать каждый раз всех исходящих)
 
 # аттрибуты ребра
 #  weight
 #  type: contextual, predict, feed
+#  если это ребро типа predict, то еще current_predict
 
 
 class GraphError(Exception):
@@ -51,7 +53,7 @@ class DataAccumulator:
         for outcome in outcomes:
             if len(self.outcomes_entries[outcome]) >= DESIRED_NUMBER_ENTRYES_PER_OUTCOME:
                 good_outcomes.append(outcome)
-        return
+        return good_outcomes
 
     def is_ready_for_consolidation(self):
         good_outcomes = self._get_good_outcomes()
@@ -59,9 +61,15 @@ class DataAccumulator:
             return True
         return False
 
-    def getTrainingData(self):
+    def get_training_data(self):
         good_outcomes = self._get_good_outcomes()
-        #TODO
+        X_train, Y_train = []
+        for outcome in good_outcomes:
+            for entry in self.outcomes_entries[outcome]:
+                X_train.append(entry)
+                Y_train.append(outcome)
+        return np.array(X_train), np.array(Y_train)
+
 
 
 class RuGraph:
@@ -94,6 +102,7 @@ class RuGraph:
         self.G.add_node(index,
                         activation=0,
                         type='input',
+                        has_predict_edges=False
                         )
 
     def add_new_node(self):
@@ -102,7 +111,8 @@ class RuGraph:
                     activation=0,
                     type='plane',
                     input=0,
-                    waiting_inputs=0
+                    waiting_inputs=0,
+                    has_predict_edges=False
                     )
         return node_id
 
@@ -115,6 +125,8 @@ class RuGraph:
         for j in (len(target_nodes_ids)):
             weight = weights[j]
             self.G.add_edges_from(node_id, target_nodes_ids[j], weight=weight, type=type_of_weights)
+        if type_of_weights == 'predict':
+            self.G.node(node_id)['has_predict_edges'] = True
 
     def init_sensors(self, input_signal):
         assert input_signal.shape() == self.input_shape(), "input signal has unexpected shape"
@@ -153,7 +165,8 @@ class RuGraph:
                     sinks.remove[target]
                     sources.append(target)
                     self.G.node[target]['activation'] = self.activation_function(self.G.node[target]['input'])
-        assert len(sinks) == 0 and len(sources) == 0, "sources and sinks must become empty at the end of propagation, but they did not"
+        assert len(sinks) == 0 and len(sources) == 0, \
+            "sources and sinks must become empty at the end of propagation, but they did not"
         self.log("propagation done")
 
     def get_nodes_of_type(self, node_type):
@@ -165,7 +178,7 @@ class RuGraph:
             self.G.remove_node(node_id)
 
     def number_of_feed_inputs(self, node):
-        return len ([pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['type'] == 'feed'])
+        return len([pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['type'] == 'feed'])
 
     def activation_function(self, x):
         return 1 / (1 + math.exp(-x))  # sigmoid
@@ -182,8 +195,15 @@ class RuGraph:
         pass
 
     def update_predictions(self):
-        # TODO
-        pass
+        # предполагаем, что в activation у всех узлов сейчас актуальные значения
+        # и просто рассылаем предсказания изо всех узлов, их которых исходят predict-ребра
+        sources_of_predictions = [n for n in self.G.nodes() if self.G.node[n]['has_predict_edges'] is True]
+        for node_id in sources_of_predictions:
+            activation = self.G.node[node_id]['activation']
+            for target_id in self.G.successors_iter(node_id):
+                #TODO
+                pass
+
 
     def consolidate(self, accumulator):
         consolidation = ruc.RuConsolidator(accumulator)
