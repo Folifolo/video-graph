@@ -249,7 +249,8 @@ class RuGraph:
             if success:
                 self.delete_accumulators()
 
-
+    def save(self, filename="rugraph.gexf"):
+        nx.write_gexf(self.G, filename)
 
 
 
