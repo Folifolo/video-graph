@@ -7,10 +7,10 @@ THRESHOLD_FOR_DIFF = 10
 class SimpleVideoGaze:
     def __init__(self, videoname, side, center=None, show=False, print_it=True):
         assert side != 0, "gaze square is zero"
-        if not os.path.isfile(self.video):
+        self.videoname = videoname
+        if not os.path.isfile(self.videoname):
             print 'file doesn\'t exist'
             return
-        self.videoname = videoname
         self.center = center
         self.capture = cv2.VideoCapture(self.videoname)
         self.prev_frame = None
@@ -24,7 +24,7 @@ class SimpleVideoGaze:
             print 'one-frame video?'
 
     def get_shape(self):
-        return self.prev_frame.shape()
+        return self.prev_frame.shape
 
     def get_next_fixation(self):
         if self.prev_frame is None:
@@ -47,5 +47,20 @@ class SimpleVideoGaze:
         return subframe
 
     def get_subframe(self, frame1, frame2):
-        #вырезаем из каждого
+        return frame2 - frame1
+
+class GazeTest:
+    def __init__(self):
         pass
+    def test(self):
+        print "gaze-test"
+        video = 'bigvideo.mp4'
+        input = SimpleVideoGaze(videoname=video, print_it=True,show=True, side=10)
+        print input.get_shape()
+        while True:
+            img = input.get_next_fixation()
+            if img is None:
+                break
+
+gaze = GazeTest()
+gaze.test()
