@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*
-from rugraph import DataAccumulator
 import numpy as np
 import theano
 import theano.tensor as T

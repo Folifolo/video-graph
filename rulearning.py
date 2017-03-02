@@ -1,8 +1,21 @@
+import rugaze
 import rugraph as rug
 import ruvisualiser as ruv
-import utils
 
 print "--------test-------"
-graph = rug.RuGraph((10,10))
+video = 'bigvideo.mp4'
+
+input = rugaze.SimpleVideoGaze(videoname=video,print_it=True, side=10)
+
+input_layer_shape = input.get_shape()
+graph = rug.RuGraph(input_layer_shape)
+
 visualiser = ruv.RuGraphVisualizer()
+
+while True:
+    new_frame = input.get_next_fixation()
+    if new_frame is None:
+        break #видео кончилось
+    graph.process_next_input(new_frame)
+
 visualiser.draw_graph(graph)
