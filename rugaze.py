@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*
 import os
 import cv2
-import utils
+
+THRESHOLD_FOR_DIFF = 10
 
 class SimpleVideoGaze:
     def __init__(self, videoname, side, center=None, show=False, print_it=True):
@@ -13,6 +14,8 @@ class SimpleVideoGaze:
         self.center = center
         self.capture = cv2.VideoCapture(self.videoname)
         self.prev_frame = None
+        self.show = show
+        self.print_it = print_it
         assert self.capture.isOpened(), "video file corrupted?"
         ret, frame = self.capture.read()
         if ret is True:
@@ -35,6 +38,14 @@ class SimpleVideoGaze:
         if ret is not True:
             return None
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        diff = utils.pixelwise_diff(self.prev_frame, frame, 10)  # TODO threshold
+        subframe = self.get_subframe(self.prev_frame, frame)
+        if self.show:
+            cv2.imshow('gaze', subframe)
+        if self.print_it:
+            print subframe
         self.prev_frame = frame
-        return diff
+        return subframe
+
+    def get_subframe(self, frame1, frame2):
+        #вырезаем из каждого
+        pass
