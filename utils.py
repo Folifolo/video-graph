@@ -53,7 +53,7 @@ def show_video_gray_diff(videoName):
             prevFrame = frame
             continue
         else:
-           diff = prevFrame- frame
+           diff = pixelwise_diff(prevFrame, frame, 10)
            prevFrame = frame
 
         draw_anchor(50,50, diff) #TODO moving anchor
@@ -105,9 +105,8 @@ def pixelwise_diff(prev, next, threshold):
 def draw_anchor(x, y, img):
     color = (255, 255, 255)
     inner_radius = 4
-    outer_radius = 10
     cv2.circle(img, (int(x), int(y)), inner_radius, color, cv2.FILLED)
-    #cv2.circle(img, (x, y), outer_radius, color, 1)
+
 
 def draw_quad(x, y, side, img):
     half = int(side/2)
@@ -141,3 +140,6 @@ import scipy
 def generate_sparse_matrix(n, m):
     M = scipy.sparse.random(n, m, density = 0.25 )
     return M
+
+#show_video_gray_diff('bigvideo.mp4')
+#show_video_gray('bigvideo.mp4')

@@ -237,7 +237,7 @@ class RuGraph:
                                                 weights=W2[i,:],
                                                 type_of_weights='predict')
         for i in range(len(sink_nodes)):
-            self.G.node[sink_nodes[i]]['bias']=b2[i]
+            self.G.node[sink_nodes[i]]['bias'] = b2[i]
 
     def process_next_input(self, input_signal):
         self.propagate(input_signal)
