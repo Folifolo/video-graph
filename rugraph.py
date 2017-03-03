@@ -147,6 +147,7 @@ class RuGraph:
             print "rugraph msg: "+ message
 
     def propagate(self, input_signal):
+        # TODO переделать так, чтоб еще считалось поле activity_change на основе текущей и ново-посчитанной activity
         self.init_sensors(input_signal)
         sources = deque(self.get_nodes_of_type('input'))
         sinks = [n for n in self.G.nodes() if self.G.node[n] not in sources]
@@ -194,8 +195,36 @@ class RuGraph:
         return good_accs[0] # подходит любой из них
 
     def update_accumulators(self):
+        #TODO
+        #находим текущие самые яркие (по полю change)
+        most_active = sorted([n for n in self.G.nodes()], some labda...)
+
+        for node in most_active:
+            # если изменение активности этого узла на этом такте
+            # не было правильно предсказано от прошлого такта
+            if not self.prediction_was_good(node):
+                # значит узел потенциально подходит добавлению в акк в кач-ве ауткома
+                for accumulator in self.get_accs_from_past(): #те, у который аутком==unknown с прошлого такта
+                    accumulator.try_add_outcome(node, self.G) # внутри этой ф-ции можно поэкспериментровать с условиями добавления
+
+
+        # для каждого яркого узла добавляем окрестность узла в акк.
+        #  В кач-ве ауткома пишем туда unknown. Если  акка нет, то создаем
+        self.add_unknouns_to_accs(most_active)
+
+    def add_unknouns_to_accs(self, node_list):
+        #сначаала удалить уже существующие accs_from_past из графа и из хеша
+        # и после этого уже инициализировать новый набор ждущих аккумуляторов
+        for node in node_list:
+            ...
+        #TODO
+
+    def get_accs_from_past(self):
         # TODO
-        pass
+
+    def prediction_was_good(self):
+        #учимся предсказывать изменения активити, а не саму активити!
+        #TODO
 
     def update_predictions(self):
         # предполагаем, что в activation у всех узлов сейчас актуальные значения
