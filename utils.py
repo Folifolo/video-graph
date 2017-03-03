@@ -53,7 +53,7 @@ def show_video_gray_diff(videoName):
             prevFrame = frame
             continue
         else:
-           diff = pixelwise_diff(prevFrame, frame, 10) #TODO threshold
+           diff = prevFrame- frame
            prevFrame = frame
 
         draw_anchor(50,50, diff) #TODO moving anchor

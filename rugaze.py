@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*
 import os
 import cv2
+import utils
 
 THRESHOLD_FOR_DIFF = 10
 
@@ -41,13 +42,36 @@ class SimpleVideoGaze:
         subframe = self.get_subframe(self.prev_frame, frame)
         if self.show:
             cv2.imshow('gaze', subframe)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                return None
         if self.print_it:
             print subframe
         self.prev_frame = frame
+
         return subframe
 
     def get_subframe(self, frame1, frame2):
         return frame2 - frame1
+
+    def show_video(self):
+        while self.capture.isOpened():
+            ret, frame = self.capture.read()
+            if ret != True:
+                break
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if self.prev_frame is None:
+                self.prev_frame = frame
+                continue
+            else:
+                diff = self.prev_frame - frame
+                self.prev_frame = frame
+
+
+            cv2.imshow('diff', diff)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        self.capture.release()
+        cv2.destroyAllWindows()
 
 class GazeTest:
     def __init__(self):
@@ -64,3 +88,6 @@ class GazeTest:
 
 gaze = GazeTest()
 gaze.test()
+input = SimpleVideoGaze(videoname='bigvideo.mp4', print_it=True, show=True, side=10)
+print input.get_shape()
+#input.show_video()
