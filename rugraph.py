@@ -14,6 +14,7 @@ DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 # аттрибуты узла
 #  input - сумма взвешенных входных сигналов
 #  activation - результат применения нелинейности к инпуту
+#  activation_change = activation(t-1) - activation(t)
 #  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
 #  type = input, accum, plane
 #  has_predict_edges - исходят ли из него хоть одно ребро типа predict (чтоб не перебирать каждый раз всех исходящих)
@@ -80,6 +81,7 @@ class RuGraph:
         self.max_layer = -1
         self.log_enabled = log
         self.input_shape = input_shape
+        self.active_accumulators = []
         self._create_input_layer()
 
     def _create_input_layer (self):
@@ -147,7 +149,6 @@ class RuGraph:
             print "rugraph msg: "+ message
 
     def propagate(self, input_signal):
-        # TODO переделать так, чтоб еще считалось поле activity_change на основе текущей и ново-посчитанной activity
         self.init_sensors(input_signal)
         sources = deque(self.get_nodes_of_type('input'))
         sinks = [n for n in self.G.nodes() if self.G.node[n] not in sources]
@@ -168,7 +169,10 @@ class RuGraph:
                     sinks.remove[target]
                     sources.append(target)
                     input_to_activation = self.G.node[target]['input']+self.G.node['bias']
-                    self.G.node[target]['activation'] = self.activation_function(input_to_activation)
+                    new_activation = self.activation_function(input_to_activation)
+                    change = activation - new_activation
+                    self.G.node[target]['activation'] = new_activation
+                    self.G.node[target]['activation_change'] = change
         assert len(sinks) == 0 and len(sources) == 0, \
             "sources and sinks must become empty at the end of propagation, but they did not"
         self.log("propagation done")
