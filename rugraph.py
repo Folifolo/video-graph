@@ -39,15 +39,24 @@ class DataAccumulator:
         self.ids = []
         self.outcomes_entries = {}
         self.id = id
+        self.entry_candidate = None
 
-    def add_new_entry(self, node_id, G, outcome_id):
+    def _get_entry_for_node(self, node_id, G):
         if len(self.ids) == 0:
             self.ids = nx.single_source_shortest_path_length(G, node_id, cutoff=NEIGHBORHOOD_RADUIS).keys()
         entry = []
         for i in self.ids:
             entry.append(G.node[i]['activation'])
         assert len(entry) == len(self.ids), 'topology changed since the last usage of accumulator, and accum was not erased'
-        self.outcomes_entries[outcome_id].append(entry)
+        return entry
+
+    def add_new_entry_candidate(self, node_id, G):
+        self.entry_candidate = self._get_entry_for_node(node_id, G)
+
+    def add_outcome(self, outcome_id):
+        assert self.entry_candidate is not None
+        self.outcomes_entries[outcome_id] = self.entry_candidate
+        self.entry_candidate = None
 
     def _get_good_outcomes(self):
         outcomes = self.outcomes_entries.keys()
@@ -72,6 +81,8 @@ class DataAccumulator:
                 Y_train.append(outcome)
         return np.array(X_train), np.array(Y_train)
 
+    def is_active(self):
+        return self.entry_candidate is not None
 
 
 class RuGraph:
@@ -201,7 +212,7 @@ class RuGraph:
     def update_accumulators(self):
         #TODO
         #находим текущие самые яркие (по полю change)
-        most_active = sorted([n for n in self.G.nodes()], some labda...)
+        most_active = sorted([n for n in self.G.nodes()], key=lambda x:self.G.node[x]['activity_change'])
 
         for node in most_active:
             # если изменение активности этого узла на этом такте
@@ -209,18 +220,23 @@ class RuGraph:
             if not self.prediction_was_good(node):
                 # значит узел потенциально подходит добавлению в акк в кач-ве ауткома
                 for accumulator in self.get_accs_from_past(): #те, у который аутком==unknown с прошлого такта
-                    accumulator.try_add_outcome(node, self.G) # внутри этой ф-ции можно поэкспериментровать с условиями добавления
+                    self.try_add_outcome(node) # внутри этой ф-ции можно поэкспериментровать с условиями добавления
 
 
         # для каждого яркого узла добавляем окрестность узла в акк.
         #  В кач-ве ауткома пишем туда unknown. Если  акка нет, то создаем
         self.add_unknouns_to_accs(most_active)
 
+    def try_add_outcome(self, node):
+        #TODO
+        pass
+
     def add_unknouns_to_accs(self, node_list):
         #сначаала удалить уже существующие accs_from_past из графа и из хеша
+        del self.active_accumulators[:]
         # и после этого уже инициализировать новый набор ждущих аккумуляторов
         for node in node_list:
-            ...
+            self.active_accumulators.append
         #TODO
 
     def get_accs_from_past(self):
