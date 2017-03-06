@@ -218,27 +218,23 @@ class RuGraph:
         return good_accs[0] # подходит любой из них
 
     def update_accumulators(self):
-        #TODO
         #находим текущие самые яркие (по полю change)
         most_active = sorted([n for n in self.G.nodes()], key=lambda x:self.G.node[x]['activity_change'])
         for node in most_active:
             # если изменение активности этого узла на этом такте
             # не было правильно предсказано от прошлого такта
+            # значит узел потенциально подходит добавлению в акк в кач-ве ауткома
             if not self.prediction_was_good(node):
-                # значит узел потенциально подходит добавлению в акк в кач-ве ауткома
-                for accumulator in self.get_accs_from_past(): #те, у который аутком==unknown с прошлого такта
-                    self.try_add_outcome(node) # внутри этой ф-ции можно поэкспериментровать с условиями добавления
-
+                self.try_add_outcome(node)
         # для каждого яркого узла добавляем окрестность узла в акк.
-        #  В кач-ве ауткома пишем туда unknown. Если  акка нет, то создаем
-        self.add_unknouns_to_accs(most_active)
+        self.activate_accs(most_active)
 
     def try_add_outcome(self, node):
         #TODO
         pass
 
-    def add_unknouns_to_accs(self, node_list):
-        #сначаала удалить активность из "потухших" аккумуляторов и из хеша
+    def activate_accs(self, node_list):
+        #сначаала удалить активность от прошлого такта из аккумуляторов и из хеша
         for node in node_list:
             self.accumulators[node].delete_last_candidate()
         del self.candidates[:]
@@ -251,9 +247,6 @@ class RuGraph:
                 self.accumulators[node].add_new_entry_candidate(node, self.G)
             else:
                 self.accumulators[node] = DataAccumulator(node)
-
-    def get_accs_from_past(self):
-        # TODO
 
     def prediction_was_good(self):
         #учимся предсказывать изменения активити, а не саму активити!
