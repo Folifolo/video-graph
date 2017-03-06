@@ -10,7 +10,6 @@ input = rugaze.SimpleVideoGaze(videoname=video,print_it=True, side=10)
 input_layer_shape = input.get_shape()
 graph = rug.RuGraph(input_layer_shape)
 
-visualiser = ruv.RuGraphVisualizer()
 
 while True:
     new_frame = input.get_next_fixation()
@@ -18,4 +17,4 @@ while True:
         break #видео кончилось
     graph.process_next_input(new_frame)
 
-visualiser.draw_graph(graph)
+graph.save()
