@@ -10,20 +10,21 @@ import ruconsolidator as ruc
 NEIGHBORHOOD_RADUIS = 4
 DESIRED_NUMBER_ENTRYES_PER_OUTCOME = 20
 DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
+PREDICTION_THR = 0.7
 
 # аттрибуты узла
 #  input - сумма взвешенных входных сигналов
 #  activation - результат применения нелинейности к инпуту
 #  activation_change = activation(t-1) - activation(t)
 #  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
-#  type = input, accum, plane
+#  type = input, plane
 #  has_predict_edges - исходят ли из него хоть одно ребро типа predict (чтоб не перебирать каждый раз всех исходящих)
 #  bias
 
 # аттрибуты ребра
 #  weight
 #  type: contextual, predict, feed
-#  если это ребро типа predict, то еще current_predict
+#  если это ребро типа predict, то еще current_prediction
 
 
 class GraphError(Exception):
@@ -211,7 +212,7 @@ class RuGraph:
         return 1 / (1 + math.exp(-x))  # sigmoid
 
     def find_accumulator_to_consolidate(self):
-        accs = self.get_nodes_of_type('accumulator')
+        accs = self.accumulators.values()
         good_accs = itertools.ifilter(lambda acc: acc.is_ready_for_consolidation(), accs)
         if len(good_accs) == 0:
             return None
@@ -248,20 +249,39 @@ class RuGraph:
             else:
                 self.accumulators[node] = DataAccumulator(node)
 
-    def prediction_was_good(self):
-        #учимся предсказывать изменения активити, а не саму активити!
-        #TODO
+    def calculate_prediction_for_node(self, node_id):
+        prediction_input = 0
+        for source_id in self.G.predecessors_iter(node_id):
+            if self.G.edge[source_id][node_id]['type'] == 'predict':
+                w = self.G.edge[source_id][node_id]['weight']
+                prediction = self.G.edge[source_id][node_id]['current_prediction']
+                prediction_input += w * prediction
+        prediction = self.activation_function(prediction_input)
+        return prediction
 
-    def update_predictions(self):
+    def prediction_was_good(self, node_id):
+        activity_change = self.G.node[node_id]['activity_change']
+        old_activity = self.G.node[node_id]['activity']
+        prediction = self.calculate_prediction_for_node(node_id)
+        return self.prediction_fit_reality_in_node(prediction, old_activity + activity_change)
+
+    def prediction_fit_reality_in_node(self, prediction, reality):
+        diff = reality - prediction
+        if math.fabs(diff) < PREDICTION_THR:
+            return True
+        return False
+
+    def prepare_predictions(self):
         # предполагаем, что в activation у всех узлов сейчас актуальные значения
         # и просто рассылаем предсказания изо всех узлов, их которых исходят predict-ребра
+        # возьмем горизонт предсказания пока - 1 такт.
+        # Сами предсказание в сети не распрстаяется дальше одного ребра от источника (пока)
         sources_of_predictions = [n for n in self.G.nodes() if self.G.node[n]['has_predict_edges'] is True]
         for node_id in sources_of_predictions:
             activation = self.G.node[node_id]['activation']
             for target_id in self.G.successors_iter(node_id):
-                #TODO
-                pass
-
+                if self.G.edge[node_id][target_id]['type'] == 'predict':
+                    self.G.edge[node_id][target_id]['current_prediction'] = activation
 
     def consolidate(self, accumulator):
         consolidation = ruc.RuConsolidator(accumulator)
@@ -296,8 +316,8 @@ class RuGraph:
 
     def process_next_input(self, input_signal):
         self.propagate(input_signal)
+        self.prepare_predictions()
         self.update_accumulators()
-        self.update_predictions()
         accumulator = self.find_accumulator_to_consolidate()
         if accumulator is not None:
             success = self.consolidate(accumulator)
