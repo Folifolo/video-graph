@@ -35,23 +35,23 @@ class GraphError(Exception):
 
 
 class DataAccumulator:
-    def __init__(self, ids, id):
+    def __init__(self, node_id):
         self.ids = []
         self.outcomes_entries = {}
-        self.id = id
+        self.id = node_id
         self.entry_candidate = None
 
-    def _get_entry_for_node(self, node_id, G):
+    def _get_entry_for_node(self, G):
         if len(self.ids) == 0:
-            self.ids = nx.single_source_shortest_path_length(G, node_id, cutoff=NEIGHBORHOOD_RADUIS).keys()
+            self.ids = nx.single_source_shortest_path_length(G, self.id, cutoff=NEIGHBORHOOD_RADUIS).keys()
         entry = []
         for i in self.ids:
             entry.append(G.node[i]['activation'])
         assert len(entry) == len(self.ids), 'topology changed since the last usage of accumulator, and accum was not erased'
         return entry
 
-    def add_new_entry_candidate(self, node_id, G):
-        self.entry_candidate = self._get_entry_for_node(node_id, G)
+    def add_new_entry_candidate(self, G):
+        self.entry_candidate = self._get_entry_for_node(self.id, G)
 
     def add_outcome(self, outcome_id):
         assert self.entry_candidate is not None
@@ -84,6 +84,10 @@ class DataAccumulator:
     def is_active(self):
         return self.entry_candidate is not None
 
+    def delete_last_candidate(self):
+        del self.entry_candidate[:]
+        self.entry_candidate = None
+
 
 class RuGraph:
     def __init__(self, input_shape, log=True):
@@ -91,8 +95,10 @@ class RuGraph:
         self.generator = itertools.count(0)
         self.max_layer = -1
         self.log_enabled = log
+        self.iteration = 0
         self.input_shape = input_shape
-        self.active_accumulators = []
+        self.candidates = []   # узлы, на которых висят "открытые" аккумуляторы
+        self.accumulators = {} # словарь пар "node_id: accumulator"
         self._create_input_layer()
 
     def _create_input_layer (self):
@@ -160,6 +166,8 @@ class RuGraph:
             print "rugraph msg: "+ message
 
     def propagate(self, input_signal):
+        self.iteration += 1
+        self.log("new iteration:" + str(self.iteration))
         self.init_sensors(input_signal)
         sources = deque(self.get_nodes_of_type('input'))
         sinks = [n for n in self.G.nodes() if self.G.node[n] not in sources]
@@ -213,7 +221,6 @@ class RuGraph:
         #TODO
         #находим текущие самые яркие (по полю change)
         most_active = sorted([n for n in self.G.nodes()], key=lambda x:self.G.node[x]['activity_change'])
-
         for node in most_active:
             # если изменение активности этого узла на этом такте
             # не было правильно предсказано от прошлого такта
@@ -221,7 +228,6 @@ class RuGraph:
                 # значит узел потенциально подходит добавлению в акк в кач-ве ауткома
                 for accumulator in self.get_accs_from_past(): #те, у который аутком==unknown с прошлого такта
                     self.try_add_outcome(node) # внутри этой ф-ции можно поэкспериментровать с условиями добавления
-
 
         # для каждого яркого узла добавляем окрестность узла в акк.
         #  В кач-ве ауткома пишем туда unknown. Если  акка нет, то создаем
@@ -232,12 +238,19 @@ class RuGraph:
         pass
 
     def add_unknouns_to_accs(self, node_list):
-        #сначаала удалить уже существующие accs_from_past из графа и из хеша
-        del self.active_accumulators[:]
-        # и после этого уже инициализировать новый набор ждущих аккумуляторов
+        #сначаала удалить активность из "потухших" аккумуляторов и из хеша
         for node in node_list:
-            self.active_accumulators.append
-        #TODO
+            self.accumulators[node].delete_last_candidate()
+        del self.candidates[:]
+        # и после этого уже инициализировать новый набор ждущих аккумуляторов
+        # если аккумулятора на узле нет, то создадам его.
+        # если есть, то активизируем его
+        self.candidates = node_list
+        for node in node_list:
+            if node in self.accumulators:
+                self.accumulators[node].add_new_entry_candidate(node, self.G)
+            else:
+                self.accumulators[node] = DataAccumulator(node)
 
     def get_accs_from_past(self):
         # TODO
