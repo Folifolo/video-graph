@@ -7,23 +7,31 @@ import networkx as nx
 import ruconsolidator as ruc
 
 #константы алгоритма
-NEIGHBORHOOD_RADUIS = 4
+NEIGHBORHOOD_RADIUS = 4
 DESIRED_NUMBER_ENTRYES_PER_OUTCOME = 20
 DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 PREDICTION_THR = 0.7
+OUTCOME_LINKING_RADIUS = 10 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
+MAX_NUMBER_ACCS_PER_OUTCOME = 100
 
-# аттрибуты узла
-#  input - сумма взвешенных входных сигналов
-#  activation - результат применения нелинейности к инпуту
-#  activation_change = activation(t-1) - activation(t)
-#  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
-#  type = input, plane
+# Аттрибуты узла - обязательные:
+#  type = input, plane, acc
 #  has_predict_edges - исходят ли из него хоть одно ребро типа predict (чтоб не перебирать каждый раз всех исходящих)
-#  bias
 
-# аттрибуты ребра
+# Аттрибуты узла - опциональные:
+#  input - сумма взвешенных входных сигналов                (для plain)
+#  activation - результат применения нелинейности к инпуту  (для plain, input)
+#  activation_change = activation(t-1) - activation(t)      (для plain, input)
+#  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
+#  bias                                                      (для plain)
+#  acc_obj                                                   (для acc)
+#  acc_node_id  - айдишник узла-аккумулятора, копящего данные для этого узла (для plain, input)
+
+# Аттрибуты ребра - обязательные:
 #  weight
 #  type: contextual, predict, feed
+#
+# Аттрибуты ребра - опциональные:
 #  если это ребро типа predict, то еще current_prediction
 
 
@@ -44,7 +52,7 @@ class DataAccumulator:
 
     def _get_entry_for_node(self, G):
         if len(self.ids) == 0:
-            self.ids = nx.single_source_shortest_path_length(G, self.id, cutoff=NEIGHBORHOOD_RADUIS).keys()
+            self.ids = nx.single_source_shortest_path_length(G, self.id, cutoff=NEIGHBORHOOD_RADIUS).keys()
         entry = []
         for i in self.ids:
             entry.append(G.node[i]['activation'])
@@ -82,11 +90,10 @@ class DataAccumulator:
                 Y_train.append(outcome)
         return np.array(X_train), np.array(Y_train)
 
-    def is_active(self):
-        return self.entry_candidate is not None
+    def get_ids(self):
+        return self.ids
 
     def delete_last_candidate(self):
-        del self.entry_candidate[:]
         self.entry_candidate = None
 
 
@@ -98,8 +105,7 @@ class RuGraph:
         self.log_enabled = log
         self.iteration = 0
         self.input_shape = input_shape
-        self.candidates = []   # узлы, на которых висят "открытые" аккумуляторы
-        self.accumulators = {} # словарь пар "node_id: accumulator"
+        self.candidates = []    # захешируем айдишники узлов-активных-аккумуляторов
         self._create_input_layer()
 
     def _create_input_layer (self):
@@ -122,30 +128,51 @@ class RuGraph:
     def _add_input_neuron(self, index):
         self.G.add_node(index,
                         activation=0,
+                        activation_change=0,
                         type='input',
-                        has_predict_edges=False
+                        has_predict_edges=False,
+                        acc_node_id=None
                         )
 
-    def add_new_node(self, bias=0):
+    def add_plain_node(self, bias=0):
         node_id = self.generator.next()
         self.G.add_node(node_id,
-                    activation=0,
-                    type='plane',
-                    input=0,
-                    waiting_inputs=0,
-                    has_predict_edges=False,
-                    bias=bias
-                    )
+                        activation=0,
+                        activation_change = 0,
+                        type='plane',
+                        input=0,
+                        waiting_inputs=0,
+                        has_predict_edges=False,
+                        bias=bias,
+                        acc_node_id = None
+                        )
         return node_id
 
-    def connect_input_weights_to_node(self, node_id, source_nodes_ids, weights, type_of_weights):
+    def add_acc_node(self, initial_node):
+        acc_node_id = self.generator.next()
+        acc = DataAccumulator(initial_node)
+        self.G.add_node(acc_node_id,
+                        type='acc',
+                        has_predict_edges=False,
+                        acc=acc
+                        )
+        self.G.add_edge(initial_node, acc_node_id, type='contextual')
+        return acc_node_id
+
+    def connect_input_weights_to_node(self, node_id, source_nodes_ids, type_of_weights, weights=None):
         for j in range(len(source_nodes_ids)):
-            weight = weights[j]
+            if weights is None:
+                weight = 1
+            else:
+                weight = weights[j]
             self.G.add_edge(source_nodes_ids[j], node_id, weight=weight, type=type_of_weights )
 
-    def connect_output_weights_to_node(self, node_id, target_nodes_ids, weights, type_of_weights):
+    def connect_output_weights_to_node(self, node_id, target_nodes_ids, type_of_weights, weights=None):
         for j in (len(target_nodes_ids)):
-            weight = weights[j]
+            if weights is None:
+                weight = 1
+            else:
+                weight = weights[j]
             self.G.add_edges_from(node_id, target_nodes_ids[j], weight=weight, type=type_of_weights)
         if type_of_weights == 'predict':
             self.G.node(node_id)['has_predict_edges'] = True
@@ -201,7 +228,7 @@ class RuGraph:
         return [n for n in self.G.nodes() if self.G.node[n]['type'] == node_type]
 
     def delete_accumulators(self):
-        accumulators = self.get_nodes_of_type('accumulator')
+        accumulators = self.get_nodes_of_type('acc')
         for node_id in accumulators:
             self.G.remove_node(node_id)
 
@@ -212,11 +239,11 @@ class RuGraph:
         return 1 / (1 + math.exp(-x))  # sigmoid
 
     def find_accumulator_to_consolidate(self):
-        accs = self.accumulators.values()
-        good_accs = itertools.ifilter(lambda acc: acc.is_ready_for_consolidation(), accs)
+        all_accs = [self.G.node[n]['acc'] for n in self.G.nodes() if self.G.node[n]['type'] == 'acc']
+        good_accs = itertools.ifilter(lambda acc: acc.is_ready_for_consolidation(), all_accs)
         if len(good_accs) == 0:
             return None
-        return good_accs[0] # подходит любой из них
+        return good_accs[0]  # подходит любой из них
 
     def update_accumulators(self):
         #находим текущие самые яркие (по полю change)
@@ -230,24 +257,36 @@ class RuGraph:
         # для каждого яркого узла добавляем окрестность узла в акк.
         self.activate_accs(most_active)
 
-    def try_add_outcome(self, node):
-        #TODO
-        pass
+    def get_most_relevant_accs_for_outcome(self, node):
+        nearest_nodes = nx.single_source_shortest_path_length(self.G, node, cutoff=OUTCOME_LINKING_RADIUS).keys()
+        nearest_accs = (n for n in nearest_nodes if n in self.candidates)
+        # TODO (1) возможно, перед тем, как брать первые эн штук,стоитх еще посортировать с учетом этой длины пути
+        # TODO (2) возможно, еще стоит их посортировать с учетом уровня абстракции (layer)
+        return itertools.islice(nearest_accs, MAX_NUMBER_ACCS_PER_OUTCOME)
 
-    def activate_accs(self, node_list):
-        #сначаала удалить активность от прошлого такта из аккумуляторов и из хеша
-        for node in node_list:
-            self.accumulators[node].delete_last_candidate()
+    def try_add_outcome(self, node_outcome):
+        # находим среди активных  аккумуляторов те, котрые находтся достаточно близко к
+        # нашему узлу и записываем его в них как аутком
+        for acc_id in self.get_most_relevant_accs_for_outcome(node_outcome):
+            self.G.node[acc_id]['acc'].add_outcome(node_outcome)
+
+    def clear_last_activity_in_accs(self):
+        for node in self.get_nodes_of_type('acc'):
+            self.G.node[node]['acc'].delete_last_candidate()
+
+    def activate_accs(self, initial_node_list):
+        #сначала удалить активность от прошлого такта из аккумуляторов и из хеша
+        self.clear_last_activity_in_accs()
         del self.candidates[:]
         # и после этого уже инициализировать новый набор ждущих аккумуляторов
-        # если аккумулятора на узле нет, то создадам его.
-        # если есть, то активизируем его
-        self.candidates = node_list
-        for node in node_list:
-            if node in self.accumulators:
-                self.accumulators[node].add_new_entry_candidate(node, self.G)
-            else:
-                self.accumulators[node] = DataAccumulator(node)
+        # если аккумулятора на узле нет, то создадам его и подсоединим к контекстной окрестности
+        for node in initial_node_list:
+            if self.G.node[node]['acc_node_id'] is None:
+                acc_id = self.add_acc_node(node)
+                ids = self.G.node[acc_id]['acc'].get_ids()
+                self.connect_input_weights_to_node(node, ids, 'contextual')
+            self.G.node[node]['acc_node_id'].add_new_entry_candidate(self.G)
+        self.candidates = initial_node_list
 
     def calculate_prediction_for_node(self, node_id):
         prediction_input = 0
@@ -292,7 +331,7 @@ class RuGraph:
             sink_nodes = accumulator.get_sink_nodes()
             self.add_new_nodes(W1, W2, b1, b2, source_nodes, sink_nodes)
             return success
-        return False #консолидация не удалась
+        return False  # консолидация не удалась
 
     def add_new_nodes(self, W1, W2, b1, b2, source_nodes, sink_nodes):
         assert W1 is not None and W2 is not None and b1 is not None and b2 is not None, 'corrupted consolidation'
@@ -302,7 +341,7 @@ class RuGraph:
         num_of_hidden_units = W1.shape()[0]
         assert len(b1) == num_of_hidden_units, 'biases vector is inconstent with neurons number'
         for i in range(num_of_hidden_units):
-            node_id = self.add_new_node(bias=b1[i])
+            node_id = self.add_plain_node(bias=b1[i])
             self.connect_input_weights_to_node(node_id,
                                                source_nodes_ids=source_nodes,
                                                weights=W1[:,i],

@@ -5,6 +5,7 @@ import numpy as np
 
 THRESHOLD_FOR_DIFF = 10
 
+
 class SimpleVideoGaze:
     def __init__(self, videoname, side, left_top_coord=None, show=False, print_it=True):
         assert side != 0, "gaze square is zero"
@@ -75,7 +76,6 @@ class SimpleVideoGaze:
             else:
                 diff = self.prev_frame - frame
                 self.prev_frame = frame
-
 
             cv2.imshow('diff', diff)
             if cv2.waitKey(1) & 0xFF == ord('q'):
