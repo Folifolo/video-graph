@@ -282,6 +282,7 @@ class RuGraph:
         for acc_id in self.get_most_relevant_accs_for_outcome(node_outcome):
             self.G.node[acc_id]['acc_obj'].add_outcome(node_outcome)
 
+
     def clear_last_activity_in_accs(self):
         for acc_node in self.get_nodes_of_type('acc'):
             self.G.node[acc_node]['acc_obj'].delete_last_candidate()
@@ -299,7 +300,7 @@ class RuGraph:
                 ids = self.G.node[acc_for_node]['acc_obj'].get_ids()
                 self.connect_input_weights_to_node(node, ids, 'contextual')
             self.G.node[acc_for_node]['acc_obj'].add_new_entry_candidate(self.G)
-        self.candidates = initial_node_list
+        self.candidates = [self.G.node[n]['acc_node_id'] for n in initial_node_list]
 
     def calculate_prediction_for_node(self, node_id):
         prediction_input = 0
