@@ -54,13 +54,16 @@ class DataAccumulator:
         if len(self.ids) == 0:
             self.ids = nx.single_source_shortest_path_length(G, self.id, cutoff=NEIGHBORHOOD_RADIUS).keys()
         entry = []
+        num_of_nodes_in_context = 0
         for i in self.ids:
-            entry.append(G.node[i]['activation'])
-        assert len(entry) == len(self.ids), 'topology changed since the last usage of accumulator, and accum was not erased'
+            if G.node[i]['type'] in ['plane', 'input']:
+                entry.append(G.node[i]['activation'])
+                num_of_nodes_in_context +=1
+        assert len(entry) == num_of_nodes_in_context, 'topology changed since the last usage of accumulator, and accum was not erased'
         return entry
 
     def add_new_entry_candidate(self, G):
-        self.entry_candidate = self._get_entry_for_node(self.id, G)
+        self.entry_candidate = self._get_entry_for_node(G)
 
     def add_outcome(self, outcome_id):
         assert self.entry_candidate is not None
@@ -157,6 +160,7 @@ class RuGraph:
                         acc=acc
                         )
         self.G.add_edge(initial_node, acc_node_id, type='contextual')
+        self.G.node[initial_node]['acc_node_id'] = acc_node_id
         return acc_node_id
 
     def connect_input_weights_to_node(self, node_id, source_nodes_ids, type_of_weights, weights=None):
@@ -243,9 +247,9 @@ class RuGraph:
     def find_accumulator_to_consolidate(self):
         all_accs = [self.G.node[n]['acc'] for n in self.G.nodes() if self.G.node[n]['type'] == 'acc']
         good_accs = itertools.ifilter(lambda acc: acc.is_ready_for_consolidation(), all_accs)
-        if len(good_accs) == 0:
-            return None
-        return good_accs[0]  # подходит любой из них
+        some_good_acc = next(good_accs, None)
+        self.log("acc selected: " + str(some_good_acc))
+        return some_good_acc # подходит любой из них
 
     def update_accumulators(self):
         #находим текущие самые яркие (по полю change)
@@ -283,11 +287,12 @@ class RuGraph:
         # и после этого уже инициализировать новый набор ждущих аккумуляторов
         # если аккумулятора на узле нет, то создадам его и подсоединим к контекстной окрестности
         for node in initial_node_list:
-            if self.G.node[node]['acc_node_id'] is None:
-                acc_id = self.add_acc_node(node)
-                ids = self.G.node[acc_id]['acc'].get_ids()
+            acc_for_node = self.G.node[node]['acc_node_id']
+            if acc_for_node is None:
+                acc_for_node = self.add_acc_node(node)
+                ids = self.G.node[acc_for_node]['acc'].get_ids()
                 self.connect_input_weights_to_node(node, ids, 'contextual')
-            self.G.node[node]['acc_node_id'].add_new_entry_candidate(self.G)
+            self.G.node[acc_for_node]['acc'].add_new_entry_candidate(self.G)
         self.candidates = initial_node_list
 
     def calculate_prediction_for_node(self, node_id):
