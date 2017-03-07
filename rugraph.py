@@ -5,6 +5,7 @@ from collections import deque
 import numpy as np
 import networkx as nx
 import ruconsolidator as ruc
+import rugraph_inspector
 
 #константы алгоритма
 NEIGHBORHOOD_RADIUS = 4
@@ -13,6 +14,7 @@ DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 PREDICTION_THR = 0.7
 OUTCOME_LINKING_RADIUS = 10 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
 MAX_NUMBER_ACCS_PER_OUTCOME = 100
+PERCENTAGE_OF_NODES_TO_REGISTER = 0.3
 
 # Аттрибуты узла - обязательные:
 #  type = input, plane, acc
@@ -157,7 +159,7 @@ class RuGraph:
         self.G.add_node(acc_node_id,
                         type='acc',
                         has_predict_edges=False,
-                        acc=acc
+                        acc_obj=acc
                         )
         self.G.add_edge(initial_node, acc_node_id, type='contextual')
         self.G.node[initial_node]['acc_node_id'] = acc_node_id
@@ -245,7 +247,7 @@ class RuGraph:
         return 1 / (1 + math.exp(-x))  # sigmoid
 
     def find_accumulator_to_consolidate(self):
-        all_accs = [self.G.node[n]['acc'] for n in self.G.nodes() if self.G.node[n]['type'] == 'acc']
+        all_accs = [self.G.node[n]['acc_obj'] for n in self.G.nodes() if self.G.node[n]['type'] == 'acc']
         good_accs = itertools.ifilter(lambda acc: acc.is_ready_for_consolidation(), all_accs)
         some_good_acc = next(good_accs, None)
         self.log("acc selected: " + str(some_good_acc))
@@ -253,7 +255,11 @@ class RuGraph:
 
     def update_accumulators(self):
         #находим текущие самые яркие (по полю change)
-        most_active = sorted([n for n in self.G.nodes()], key=lambda x:self.G.node[x]['activation_change'])
+        all_nodes = sorted([n for n in self.G.nodes() if self.G.node[n]['type'] != 'acc'],
+                             key=lambda x: self.G.node[x]['activation_change'])
+        number_nodes = PERCENTAGE_OF_NODES_TO_REGISTER * len(all_nodes)
+        most_active = all_nodes[: int(number_nodes)]
+        self.log("update ccumulators: selected " + str(len(most_active)) + " nodes")
         for node in most_active:
             # если изменение активности этого узла на этом такте
             # не было правильно предсказано от прошлого такта
@@ -274,11 +280,11 @@ class RuGraph:
         # находим среди активных  аккумуляторов те, котрые находтся достаточно близко к
         # нашему узлу и записываем его в них как аутком
         for acc_id in self.get_most_relevant_accs_for_outcome(node_outcome):
-            self.G.node[acc_id]['acc'].add_outcome(node_outcome)
+            self.G.node[acc_id]['acc_obj'].add_outcome(node_outcome)
 
     def clear_last_activity_in_accs(self):
-        for node in self.get_nodes_of_type('acc'):
-            self.G.node[node]['acc'].delete_last_candidate()
+        for acc_node in self.get_nodes_of_type('acc'):
+            self.G.node[acc_node]['acc_obj'].delete_last_candidate()
 
     def activate_accs(self, initial_node_list):
         #сначала удалить активность от прошлого такта из аккумуляторов и из хеша
@@ -290,9 +296,9 @@ class RuGraph:
             acc_for_node = self.G.node[node]['acc_node_id']
             if acc_for_node is None:
                 acc_for_node = self.add_acc_node(node)
-                ids = self.G.node[acc_for_node]['acc'].get_ids()
+                ids = self.G.node[acc_for_node]['acc_obj'].get_ids()
                 self.connect_input_weights_to_node(node, ids, 'contextual')
-            self.G.node[acc_for_node]['acc'].add_new_entry_candidate(self.G)
+            self.G.node[acc_for_node]['acc_obj'].add_new_entry_candidate(self.G)
         self.candidates = initial_node_list
 
     def calculate_prediction_for_node(self, node_id):
@@ -369,12 +375,17 @@ class RuGraph:
             success = self.consolidate(accumulator)
             if success:
                 self.delete_accumulators()
+        self.inspect_graph()
 
     def save(self, filename="rugraph.gexf"):
         nx.write_gexf(self.G, filename)
 
-
-
-
+    def inspect_graph(self):
+        inspector = rugraph_inspector.RuGraphInspector()
+        result = inspector.inspect(self.G)
+        if not result:
+            raise GraphError(inspector.err_msg)
+        else:
+            self.log("inspection passed")
 
 
