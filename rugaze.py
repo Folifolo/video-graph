@@ -7,13 +7,13 @@ THRESHOLD_FOR_DIFF = 10
 
 
 class SimpleVideoGaze:
-    def __init__(self, videoname, side, left_top_coord=None, show=False, print_it=True):
+    def __init__(self, videoname, side, left_top_coord=None, show=False, print_it=False):
         assert side != 0, "gaze square is zero"
         self.videoname = videoname
         if not os.path.isfile(self.videoname):
             print 'file doesn\'t exist'
             return
-        self. left_top_coord =  left_top_coord
+        self. left_top_coord = left_top_coord
         self.capture = cv2.VideoCapture(self.videoname)
         self.prev_frame = None
         self.show = show
@@ -62,7 +62,7 @@ class SimpleVideoGaze:
         X2 = self.left_top_coord[0] + self.side
         Y1 = self.left_top_coord[1]
         Y2 = self.left_top_coord[1] + self.side
-        return diff[X1:X2+1, Y1:Y2+1]
+        return diff[X1:X2, Y1:Y2]
 
     def show_video(self):
         while self.capture.isOpened():
@@ -98,6 +98,6 @@ class GazeTest:
             if img is None:
                 break
 
-gaze = GazeTest()
-gaze.test()
+#gaze = GazeTest()
+#gaze.test()
 

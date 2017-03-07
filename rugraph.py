@@ -178,7 +178,7 @@ class RuGraph:
             self.G.node(node_id)['has_predict_edges'] = True
 
     def init_sensors(self, input_signal):
-        assert input_signal.shape() == self.input_shape(), "input signal has unexpected shape"
+        assert input_signal.shape == self.input_shape, "input signal has unexpected shape"
         rows = input_signal.shape[0]
         cols = input_signal.shape[1]
         for i in range(rows):
@@ -198,7 +198,7 @@ class RuGraph:
         self.log("new iteration:" + str(self.iteration))
         self.init_sensors(input_signal)
         sources = deque(self.get_nodes_of_type('input'))
-        sinks = [n for n in self.G.nodes() if self.G.node[n] not in sources]
+        sinks = [n for n in self.get_nodes_of_type('plain')]
         # поля input и waiting_inputs нужны только для прямого распространения,
         # надо их очистить от значений с прошлых выховов этий функции
         for n in sinks:
@@ -207,15 +207,17 @@ class RuGraph:
         while len(sources) != 0:
             source = sources.popleft()
             activation = self.G.node[source]['activation']
-            for target in self.G.successors(source):  # рассылаем от узла сигнал ко всем адрессатам
+            for target in self.G.successors_iter(source):  # рассылаем от узла сигнал ко всем адрессатам
+                if self.G.edge[source][target]['type'] != 'feed':
+                    break
                 w = self.G.edge[source][target]['weight']
                 self.G.node[target]['input'] += activation*w
                 if self.G.node[target]['waiting_inputs'] > 1:
                     self.G.node[target]['waiting_inputs'] -= 1
                 else:  # этот узел получил данные ото всех, и может теперь сам становиться источником сигнала
-                    sinks.remove[target]
+                    sinks.remove(target)  # не оч хорошо из листа удалять из произвольного места...
                     sources.append(target)
-                    input_to_activation = self.G.node[target]['input']+self.G.node['bias']
+                    input_to_activation = self.G.node[target]['input'] + self.G.node['bias']
                     new_activation = self.activation_function(input_to_activation)
                     change = activation - new_activation
                     self.G.node[target]['activation'] = new_activation
@@ -247,7 +249,7 @@ class RuGraph:
 
     def update_accumulators(self):
         #находим текущие самые яркие (по полю change)
-        most_active = sorted([n for n in self.G.nodes()], key=lambda x:self.G.node[x]['activity_change'])
+        most_active = sorted([n for n in self.G.nodes()], key=lambda x:self.G.node[x]['activation_change'])
         for node in most_active:
             # если изменение активности этого узла на этом такте
             # не было правильно предсказано от прошлого такта
@@ -299,8 +301,8 @@ class RuGraph:
         return prediction
 
     def prediction_was_good(self, node_id):
-        activity_change = self.G.node[node_id]['activity_change']
-        old_activity = self.G.node[node_id]['activity']
+        activity_change = self.G.node[node_id]['activation_change']
+        old_activity = self.G.node[node_id]['activation']
         prediction = self.calculate_prediction_for_node(node_id)
         return self.prediction_fit_reality_in_node(prediction, old_activity + activity_change)
 

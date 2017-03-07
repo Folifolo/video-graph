@@ -1,11 +1,11 @@
+# -*- coding: utf-8 -*
 import rugaze
 import rugraph as rug
-import ruvisualiser as ruv
 
 print "--------test-------"
 video = 'bigvideo.mp4'
 
-input = rugaze.SimpleVideoGaze(videoname=video,print_it=True, side=10)
+input = rugaze.SimpleVideoGaze(videoname=video, side=10, left_top_coord=(200,200))
 
 input_layer_shape = input.get_shape()
 graph = rug.RuGraph(input_layer_shape)
