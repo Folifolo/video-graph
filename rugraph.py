@@ -2,40 +2,16 @@
 import itertools
 import math
 from collections import deque
-import numpy as np
 import networkx as nx
 import ruconsolidator as ruc
 import rugraph_inspector
+import ru_data_accumulator
 
 #константы алгоритма
-NEIGHBORHOOD_RADIUS = 4
-DESIRED_NUMBER_ENTRYES_PER_OUTCOME = 20
-DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 PREDICTION_THR = 0.7
-OUTCOME_LINKING_RADIUS = 10 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
+OUTCOME_LINKING_RADIUS = 15 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
 MAX_NUMBER_ACCS_PER_OUTCOME = 100
 PERCENTAGE_OF_NODES_TO_REGISTER = 0.3
-
-# Аттрибуты узла - обязательные:
-#  type = input, plane, acc
-#  has_predict_edges - исходят ли из него хоть одно ребро типа predict (чтоб не перебирать каждый раз всех исходящих)
-
-# Аттрибуты узла - опциональные:
-#  input - сумма взвешенных входных сигналов                (для plain)
-#  activation - результат применения нелинейности к инпуту  (для plain, input)
-#  activation_change = activation(t-1) - activation(t)      (для plain, input)
-#  waiting_inputs - сколько инпутов еще должны прилать свои сигналы до того, как можно будет применить функцию активации
-#  bias                                                      (для plain)
-#  acc_obj                                                   (для acc)
-#  acc_node_id  - айдишник узла-аккумулятора, копящего данные для этого узла (для plain, input)
-
-# Аттрибуты ребра - обязательные:
-#  weight
-#  type: contextual, predict, feed
-#
-# Аттрибуты ребра - опциональные:
-#  если это ребро типа predict, то еще current_prediction
-
 
 class GraphError(Exception):
     def __init__(self, value):
@@ -43,63 +19,6 @@ class GraphError(Exception):
 
     def __str__(self):
         return repr(self.value)
-
-
-class DataAccumulator:
-    def __init__(self, node_id):
-        self.ids = []
-        self.outcomes_entries = {}
-        self.id = node_id
-        self.entry_candidate = None
-
-    def _get_entry_for_node(self, G):
-        if len(self.ids) == 0:
-            self.ids = nx.single_source_shortest_path_length(G, self.id, cutoff=NEIGHBORHOOD_RADIUS).keys()
-        entry = []
-        num_of_nodes_in_context = 0
-        for i in self.ids:
-            if G.node[i]['type'] in ['plane', 'input']:
-                entry.append(G.node[i]['activation'])
-                num_of_nodes_in_context +=1
-        assert len(entry) == num_of_nodes_in_context, 'topology changed since the last usage of accumulator, and accum was not erased'
-        return entry
-
-    def add_new_entry_candidate(self, G):
-        self.entry_candidate = self._get_entry_for_node(G)
-
-    def add_outcome(self, outcome_id):
-        assert self.entry_candidate is not None
-        self.outcomes_entries[outcome_id] = self.entry_candidate
-        self.entry_candidate = None
-
-    def _get_good_outcomes(self):
-        outcomes = self.outcomes_entries.keys()
-        good_outcomes = []
-        for outcome in outcomes:
-            if len(self.outcomes_entries[outcome]) >= DESIRED_NUMBER_ENTRYES_PER_OUTCOME:
-                good_outcomes.append(outcome)
-        return good_outcomes
-
-    def is_ready_for_consolidation(self):
-        good_outcomes = self._get_good_outcomes()
-        if len(good_outcomes) >= DESIRED_NUMBER_OF_GOOD_OUTCOMES:
-            return True
-        return False
-
-    def get_training_data(self):
-        good_outcomes = self._get_good_outcomes()
-        X_train, Y_train = []
-        for outcome in good_outcomes:
-            for entry in self.outcomes_entries[outcome]:
-                X_train.append(entry)
-                Y_train.append(outcome)
-        return np.array(X_train), np.array(Y_train)
-
-    def get_ids(self):
-        return self.ids
-
-    def delete_last_candidate(self):
-        self.entry_candidate = None
 
 
 class RuGraph:
@@ -113,7 +32,7 @@ class RuGraph:
         self.candidates = []    # захешируем айдишники узлов-активных-аккумуляторов
         self._create_input_layer()
 
-    def _create_input_layer (self):
+    def _create_input_layer(self):
         rows, cols = self.input_shape[0], self.input_shape[1]
         for i in range(rows):
             for j in range(cols):
@@ -155,7 +74,7 @@ class RuGraph:
 
     def add_acc_node(self, initial_node):
         acc_node_id = self.generator.next()
-        acc = DataAccumulator(initial_node)
+        acc = ru_data_accumulator.DataAccumulator(initial_node)
         self.G.add_node(acc_node_id,
                         type='acc',
                         has_predict_edges=False,
@@ -191,17 +110,23 @@ class RuGraph:
             for j in range(cols):
                 self.G.node[(i,j)]['activation'] = input_signal[i,j]
 
-    def print_info(self):
+    def print_graph_state(self):
+        print "State:"
         print "Max level: " + str(self.max_layer + 1)
         print "Number of edges: " + str(self.G.number_of_edges())
+        print "acc nodes: " + str(self.get_nodes_of_type('acc'))
+        print 'plain nodes: ' + str(self.get_nodes_of_type('plain'))
+        print 'input nodes: ' + str(self.get_nodes_of_type('input'))
+        print 'active accumulators:' + str(self.candidates)
+        for acc_id in [i for i in self.G.nodes() if self.G.node[i]['type'] == 'acc']:
+            self.G.node[acc_id]['acc_obj'].print_state()
+        print "+++++++++++++++++++++++++++++"
 
     def log(self, message):
         if self.log_enabled:
-            print "rugraph msg: "+ message
+            print message
 
     def propagate(self, input_signal):
-        self.iteration += 1
-        self.log("new iteration:" + str(self.iteration))
         self.init_sensors(input_signal)
         sources = deque(self.get_nodes_of_type('input'))
         sinks = [n for n in self.get_nodes_of_type('plain')]
@@ -236,6 +161,7 @@ class RuGraph:
         return [n for n in self.G.nodes() if self.G.node[n]['type'] == node_type]
 
     def delete_accumulators(self):
+        self.log("deleting all accumulators...")
         accumulators = self.get_nodes_of_type('acc')
         for node_id in accumulators:
             self.G.remove_node(node_id)
@@ -250,7 +176,7 @@ class RuGraph:
         all_accs = [self.G.node[n]['acc_obj'] for n in self.G.nodes() if self.G.node[n]['type'] == 'acc']
         good_accs = itertools.ifilter(lambda acc: acc.is_ready_for_consolidation(), all_accs)
         some_good_acc = next(good_accs, None)
-        self.log("acc selected: " + str(some_good_acc))
+        self.log("acc selected for consolidation: " + str(some_good_acc))
         return some_good_acc # подходит любой из них
 
     def update_accumulators(self):
@@ -259,19 +185,20 @@ class RuGraph:
                              key=lambda x: self.G.node[x]['activation_change'])
         number_nodes = PERCENTAGE_OF_NODES_TO_REGISTER * len(all_nodes)
         most_active = all_nodes[: int(number_nodes)]
-        self.log("update ccumulators: selected " + str(len(most_active)) + " nodes")
+        self.log("update accumulators: most active " + str(len(most_active)) + " nodes: " + str(most_active))
         for node in most_active:
             # если изменение активности этого узла на этом такте
             # не было правильно предсказано от прошлого такта
             # значит узел потенциально подходит добавлению в акк в кач-ве ауткома
             if not self.prediction_was_good(node):
+                self.log("unpredicted node activity: " + str(node))
                 self.try_add_outcome(node)
         # для каждого яркого узла добавляем окрестность узла в акк.
         self.activate_accs(most_active)
 
     def get_most_relevant_accs_for_outcome(self, node):
         nearest_nodes = nx.single_source_shortest_path_length(self.G, node, cutoff=OUTCOME_LINKING_RADIUS).keys()
-        nearest_accs = (n for n in nearest_nodes if n in self.candidates)
+        nearest_accs = [n for n in nearest_nodes if n in self.candidates]
         # TODO (1) возможно, перед тем, как брать первые эн штук,стоитх еще посортировать с учетом этой длины пути
         # TODO (2) возможно, еще стоит их посортировать с учетом уровня абстракции (layer)
         return itertools.islice(nearest_accs, MAX_NUMBER_ACCS_PER_OUTCOME)
@@ -281,7 +208,6 @@ class RuGraph:
         # нашему узлу и записываем его в них как аутком
         for acc_id in self.get_most_relevant_accs_for_outcome(node_outcome):
             self.G.node[acc_id]['acc_obj'].add_outcome(node_outcome)
-
 
     def clear_last_activity_in_accs(self):
         for acc_node in self.get_nodes_of_type('acc'):
@@ -304,11 +230,15 @@ class RuGraph:
 
     def calculate_prediction_for_node(self, node_id):
         prediction_input = 0
+        somebody_tried_to_predict = False
         for source_id in self.G.predecessors_iter(node_id):
             if self.G.edge[source_id][node_id]['type'] == 'predict':
+                somebody_tried_to_predict = True
                 w = self.G.edge[source_id][node_id]['weight']
                 prediction = self.G.edge[source_id][node_id]['current_prediction']
                 prediction_input += w * prediction
+        if not somebody_tried_to_predict:
+            return None  # сеть даже не пыталась предсказать активность в этой ноде
         prediction = self.activation_function(prediction_input)
         return prediction
 
@@ -316,6 +246,8 @@ class RuGraph:
         activity_change = self.G.node[node_id]['activation_change']
         old_activity = self.G.node[node_id]['activation']
         prediction = self.calculate_prediction_for_node(node_id)
+        if prediction is None:
+            return False
         return self.prediction_fit_reality_in_node(prediction, old_activity + activity_change)
 
     def prediction_fit_reality_in_node(self, prediction, reality):
@@ -330,6 +262,7 @@ class RuGraph:
         # возьмем горизонт предсказания пока - 1 такт.
         # Сами предсказание в сети не распрстаяется дальше одного ребра от источника (пока)
         sources_of_predictions = [n for n in self.G.nodes() if self.G.node[n]['has_predict_edges'] is True]
+        self.log ('there are ' + str(len(sources_of_predictions)) + ' sources of prediction')
         for node_id in sources_of_predictions:
             activation = self.G.node[node_id]['activation']
             for target_id in self.G.successors_iter(node_id):
@@ -337,6 +270,7 @@ class RuGraph:
                     self.G.edge[node_id][target_id]['current_prediction'] = activation
 
     def consolidate(self, accumulator):
+        self.log("try to consolidate acuumulator for node " + str(accumulator.id) + "...")
         consolidation = ruc.RuConsolidator(accumulator)
         success = consolidation.consolidate()
         if success:
@@ -345,9 +279,11 @@ class RuGraph:
             sink_nodes = accumulator.get_sink_nodes()
             self.add_new_nodes(W1, W2, b1, b2, source_nodes, sink_nodes)
             return success
+        self.log("...consolidation failed.")
         return False  # консолидация не удалась
 
     def add_new_nodes(self, W1, W2, b1, b2, source_nodes, sink_nodes):
+        self.log("adding new nodes...")
         assert W1 is not None and W2 is not None and b1 is not None and b2 is not None, 'corrupted consolidation'
         assert W1.shape()[0] == W2.shape()[1], \
             'shapes of matrices input-to-hidden and hidden-to-output are inconsistent'
@@ -368,6 +304,9 @@ class RuGraph:
             self.G.node[sink_nodes[i]]['bias'] = b2[i]
 
     def process_next_input(self, input_signal):
+        self.iteration += 1
+        self.log("--------------------ITERATION " + str(self.iteration) + "--------------------")
+        self.print_graph_state()
         self.propagate(input_signal)
         self.prepare_predictions()
         self.update_accumulators()
@@ -386,7 +325,4 @@ class RuGraph:
         result = inspector.inspect(self.G)
         if not result:
             raise GraphError(inspector.err_msg)
-        else:
-            self.log("inspection passed")
-
 

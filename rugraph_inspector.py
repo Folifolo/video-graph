@@ -2,11 +2,10 @@
 
 
 class RuGraphInspector:
-
-    # обязательные поля для каждого типа узла
+    # поля для каждого типа узлов
     ATTRS_NODE_MAP = {
         'acc'  :   {
-                    'type': 'acc',
+                    'type': 'acc',              # тип узла
                     'has_predict_edges': False, # исходит ли из него хоть одно ребро типа predict (нет)
                     'acc_obj': 'UN'             # объект-аккумулятор (см. класс DataAccumulator)
                     },
@@ -14,12 +13,12 @@ class RuGraphInspector:
         'plain': {
                     'type': 'plain',
                     'has_predict_edges': 'UN',
-                    'input': 'UN',
-                    'bias': 'UN',
-                    'waiting_inputs':'UN',
-                    'activation': 'UN',
-                    'activation_change': 'UN',
-                    'acc_node_id': 'UN'
+                    'bias': 'UN',              # биас узла
+                    'waiting_inputs': 'UN',    # со скольки входов еще не получен сигнал
+                    'input': 'UN',             # сумма взвешенных входных сигналов
+                    'activation': 'UN',        # результат применения нелинейности к инпуту
+                    'activation_change': 'UN', # activation(t-1) - activation(t)
+                    'acc_node_id': 'UN'        # айдишник узла-аккумулятора, копящего данные для этого узла
                  },
 
         'input': {
@@ -29,6 +28,22 @@ class RuGraphInspector:
                   'activation_change': 'UN',
                   'acc_node_id': 'UN'
                 }
+    }
+    # поля для каждого типа ребер
+    ATTRS_EDGE_MAP = {
+        'contextual': {
+                        'weight': 'UN',
+                        'type': 'contextual'
+                      },
+        'predict':    {
+                        'weight': 'UN',
+                        'type': 'predict',
+                        'current_prediction': 'UN'
+                      },
+        'feed':       {
+                        'weight': 'UN',
+                        'type': 'feed'
+                      }
     }
 
     def __init__(self):

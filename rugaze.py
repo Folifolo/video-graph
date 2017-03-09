@@ -7,18 +7,18 @@ THRESHOLD_FOR_DIFF = 10
 
 
 class SimpleVideoGaze:
-    def __init__(self, videoname, side, left_top_coord=None, show=False, print_it=False):
+    def __init__(self, video_name, side, left_top_coord=None, show=False, print_it=False):
         assert side != 0, "gaze square is zero"
-        self.videoname = videoname
-        if not os.path.isfile(self.videoname):
+        self.video_name = video_name
+        if not os.path.isfile(self.video_name):
             print 'file doesn\'t exist'
             return
         self. left_top_coord = left_top_coord
-        self.capture = cv2.VideoCapture(self.videoname)
+        self.capture = cv2.VideoCapture(self.video_name)
         self.prev_frame = None
         self.show = show
         self.print_it = print_it
-        if print_it: #весьма замедляет всё, но зато большую матрицу всю видно
+        if print_it: # весьма замедляет всё, но зато большую матрицу всю видно
             np.set_printoptions(threshold=np.inf)
         self.side = side
         assert self.capture.isOpened(), "video file corrupted?"
@@ -67,7 +67,7 @@ class SimpleVideoGaze:
     def show_video(self):
         while self.capture.isOpened():
             ret, frame = self.capture.read()
-            if ret != True:
+            if ret is not True:
                 break
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             if self.prev_frame is None:
@@ -91,13 +91,13 @@ class GazeTest:
     def test(self):
         print "gaze-test"
         video = 'bigvideo.mp4'
-        input = SimpleVideoGaze(videoname=video, print_it=True, show=True, side=200, left_top_coord=(220,220))
-        print input.get_shape()
+        gaze = SimpleVideoGaze(video_name=video, print_it=True, show=True, side=200, left_top_coord=(220,220))
+        print gaze.get_shape()
         while True:
-            img = input.get_next_fixation()
+            img = gaze.get_next_fixation()
             if img is None:
                 break
 
-#gaze = GazeTest()
-#gaze.test()
+#my_gaze = GazeTest()
+#my_gaze.test()
 
