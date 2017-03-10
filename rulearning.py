@@ -3,7 +3,7 @@ import rugaze
 import rugraph as rug
 
 print "--------test-------"
-video = 'bigvideo.mp4'
+video = 'bigvideo.avi'
 
 input = rugaze.SimpleVideoGaze(video_name=video, side=5, left_top_coord=(210,200))
 

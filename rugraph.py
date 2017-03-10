@@ -10,8 +10,7 @@ import ru_data_accumulator
 #константы алгоритма
 PREDICTION_THR = 0.7
 OUTCOME_LINKING_RADIUS = 15 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
-MAX_NUMBER_ACCS_PER_OUTCOME = 100
-PERCENTAGE_OF_NODES_TO_REGISTER = 0.3
+ACTIVATION_THR = 0.7
 
 class GraphError(Exception):
     def __init__(self, value):
@@ -179,41 +178,46 @@ class RuGraph:
         self.log("acc selected for consolidation: " + str(some_good_acc))
         return some_good_acc # подходит любой из них
 
+    def get_most_active_nodes(self):
+        nodes = [n for n in self.G.nodes() if self.G.node[n]['type'] != 'acc' and
+                 self.G.node[n]['activation_change'] >= ACTIVATION_THR]
+        return nodes
+
     def update_accumulators(self):
-        #находим текущие самые яркие (по полю change)
-        all_nodes = sorted([n for n in self.G.nodes() if self.G.node[n]['type'] != 'acc'],
-                             key=lambda x: self.G.node[x]['activation_change'])
-        number_nodes = PERCENTAGE_OF_NODES_TO_REGISTER * len(all_nodes)
-        most_active = all_nodes[: int(number_nodes)]
+        unpredicted = []
+        most_active = self.get_most_active_nodes()
         self.log("update accumulators: most active " + str(len(most_active)) + " nodes: " + str(most_active))
         for node in most_active:
             # если изменение активности этого узла на этом такте
             # не было правильно предсказано от прошлого такта
-            # значит узел потенциально подходит добавлению в акк в кач-ве ауткома
+            # значит узел подходит добавлению в акк в кач-ве ауткома
             if not self.prediction_was_good(node):
-                self.log("unpredicted node activity: " + str(node))
-                self.try_add_outcome(node)
-        # для каждого яркого узла добавляем окрестность узла в акк.
-        self.activate_accs(most_active)
+                unpredicted.append[node]
+        self.log("unpredicted are " + len(unpredicted) + ", predicted = " + len(most_active) - len(unpredicted))
+        self.add_as_outcomes(unpredicted)
+        self.add_as_contexts(unpredicted)
 
-    def get_most_relevant_accs_for_outcome(self, node):
-        nearest_nodes = nx.single_source_shortest_path_length(self.G, node, cutoff=OUTCOME_LINKING_RADIUS).keys()
-        nearest_accs = [n for n in nearest_nodes if n in self.candidates]
-        # TODO (1) возможно, перед тем, как брать первые эн штук,стоитх еще посортировать с учетом этой длины пути
-        # TODO (2) возможно, еще стоит их посортировать с учетом уровня абстракции (layer)
-        return itertools.islice(nearest_accs, MAX_NUMBER_ACCS_PER_OUTCOME)
+    def add_as_outcomes(self, outcomes):
+        for acc_id in self.candidates:
+            outcome_id = self.find_nearest_from_list(acc_id, outcomes)
+            if outcome_id is not None:
+                self.G.node[acc_id]['acc_obj'].add_outcome(outcome_id)
+                self.candidates.remove(acc_id)
 
-    def try_add_outcome(self, node_outcome):
-        # находим среди активных  аккумуляторов те, котрые находтся достаточно близко к
-        # нашему узлу и записываем его в них как аутком
-        for acc_id in self.get_most_relevant_accs_for_outcome(node_outcome):
-            self.G.node[acc_id]['acc_obj'].add_outcome(node_outcome)
+    def find_nearest_from_list(self, acc, outcomes):
+        nearest_nodes = nx.single_source_shortest_path_length(self.G, acc, cutoff=OUTCOME_LINKING_RADIUS)
+        for (k,v) in nearest_nodes:
+            if k not in outcomes:
+                del nearest_nodes[k]
+        if len(nearest_nodes) == 0:
+            return None
+        return max(nearest_nodes, key=lambda x: x.value())
 
     def clear_last_activity_in_accs(self):
         for acc_node in self.get_nodes_of_type('acc'):
             self.G.node[acc_node]['acc_obj'].delete_last_candidate()
 
-    def activate_accs(self, initial_node_list):
+    def add_as_contexts(self, initial_node_list):
         #сначала удалить активность от прошлого такта из аккумуляторов и из хеша
         self.clear_last_activity_in_accs()
         del self.candidates[:]
