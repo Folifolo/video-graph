@@ -49,11 +49,12 @@ class SimpleVideoGaze:
             cv2.imshow('gaze', subframe)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 return None
+
+        self.prev_frame = frame
+        subframe = subframe * float(1) / float(255)
         if self.print_it:
             print subframe
             print "---"
-        self.prev_frame = frame
-
         return subframe
 
     def get_subframe(self, frame1, frame2):
@@ -90,8 +91,8 @@ class GazeTest:
 
     def test(self):
         print "gaze-test"
-        video = 'bigvideo.mp4'
-        gaze = SimpleVideoGaze(video_name=video, print_it=True, show=True, side=200, left_top_coord=(220,220))
+        video = 'bigvideo.avi'
+        gaze = SimpleVideoGaze(video_name=video, print_it=True, show=True, side=15, left_top_coord=(120,120))
         print gaze.get_shape()
         while True:
             img = gaze.get_next_fixation()

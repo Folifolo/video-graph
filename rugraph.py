@@ -10,7 +10,7 @@ import ru_data_accumulator
 #константы алгоритма
 PREDICTION_THR = 0.7
 OUTCOME_LINKING_RADIUS = 15 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
-ACTIVATION_THR = 0.7
+ACTIVATION_THR = 0.2
 
 class GraphError(Exception):
     def __init__(self, value):
@@ -107,7 +107,9 @@ class RuGraph:
         cols = input_signal.shape[1]
         for i in range(rows):
             for j in range(cols):
-                self.G.node[(i,j)]['activation'] = input_signal[i,j]
+                activation_last_tact = self.G.node[(i, j)]['activation']
+                self.G.node[(i, j)]['activation'] = input_signal[i,j]
+                self.G.node[(i, j)]['activation_change'] = input_signal[i,j] - activation_last_tact
 
     def print_graph_state(self):
         print "State:"
@@ -192,8 +194,9 @@ class RuGraph:
             # не было правильно предсказано от прошлого такта
             # значит узел подходит добавлению в акк в кач-ве ауткома
             if not self.prediction_was_good(node):
-                unpredicted.append[node]
-        self.log("unpredicted are " + len(unpredicted) + ", predicted = " + len(most_active) - len(unpredicted))
+                unpredicted.append(node)
+        self.log("unpredicted are " + str(len(unpredicted)) + ", predicted = " +
+                 str(len(most_active) - len(unpredicted)))
         self.add_as_outcomes(unpredicted)
         self.add_as_contexts(unpredicted)
 
@@ -206,7 +209,8 @@ class RuGraph:
 
     def find_nearest_from_list(self, acc, outcomes):
         nearest_nodes = nx.single_source_shortest_path_length(self.G, acc, cutoff=OUTCOME_LINKING_RADIUS)
-        for (k,v) in nearest_nodes:
+        print "NEAREST :" + str(nearest_nodes)
+        for k in list(nearest_nodes):
             if k not in outcomes:
                 del nearest_nodes[k]
         if len(nearest_nodes) == 0:
