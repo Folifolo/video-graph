@@ -16,6 +16,9 @@ class DataAccumulator:
     def _get_entry_for_node(self, G):
         if len(self.ids) == 0:
             self.ids = nx.single_source_shortest_path_length(G, self.id, cutoff=NEIGHBORHOOD_RADIUS).keys()
+            for n in self.ids:
+                if G.node[n]['type'] not in ['plane', 'input']:
+                     self.ids.remove(n)
         entry = []
         num_of_nodes_in_context = 0
         for i in self.ids:
