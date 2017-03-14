@@ -17,12 +17,12 @@ class DataAccumulator:
         if len(self.ids) == 0:
             self.ids = nx.single_source_shortest_path_length(G, self.id, cutoff=NEIGHBORHOOD_RADIUS).keys()
             for n in self.ids:
-                if G.node[n]['type'] not in ['plane', 'input']:
+                if G.node[n]['mtype'] not in ['plane', 'input']:
                      self.ids.remove(n)
         entry = []
         num_of_nodes_in_context = 0
         for i in self.ids:
-            if G.node[i]['type'] in ['plane', 'input']:
+            if G.node[i]['mtype'] in ['plane', 'input']:
                 entry.append(G.node[i]['activation'])
                 num_of_nodes_in_context += 1
         assert len(entry) == num_of_nodes_in_context, 'topology changed since the last usage of accumulator, and accum was not erased'

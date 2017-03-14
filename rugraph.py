@@ -50,13 +50,13 @@ class RuGraph:
         for j in range(cols):
             for i in range( rows - 1):
                 edges.append(((i, j), (i + 1, j)))
-        self.G.add_edges_from(edges, weight=1, type='contextual')
+        self.G.add_edges_from(edges, weight=1, mtype='contextual')
 
     def _add_input_neuron(self, index):
         self.G.add_node(index,
                         activation=0,
                         activation_change=0,
-                        type='input',
+                        mtype='input',
                         has_predict_edges=False,
                         acc_node_id='None'
                         )
@@ -66,7 +66,7 @@ class RuGraph:
         self.G.add_node(node_id,
                         activation=0,
                         activation_change = 0,
-                        type='plane',
+                        mtype='plane',
                         input=0,
                         waiting_inputs=0,
                         has_predict_edges=False,
@@ -79,11 +79,11 @@ class RuGraph:
         acc_node_id = self.generator.next()
         acc = ru_data_accumulator.DataAccumulator(initial_node)
         self.G.add_node(acc_node_id,
-                        type='acc',
+                        mtype='acc',
                         has_predict_edges=False,
                         acc_obj=acc
                         )
-        self.G.add_edge(initial_node, acc_node_id, type='contextual')
+        self.G.add_edge(initial_node, acc_node_id, mtype='contextual')
         self.G.node[initial_node]['acc_node_id'] = acc_node_id
         return acc_node_id
 
@@ -93,7 +93,7 @@ class RuGraph:
                 weight = 1
             else:
                 weight = weights[j]
-            self.G.add_edge(source_nodes_ids[j], node_id, weight=weight, type=type_of_weights )
+            self.G.add_edge(source_nodes_ids[j], node_id, weight=weight, mtype=type_of_weights )
 
     def connect_output_weights_to_node(self, node_id, target_nodes_ids, type_of_weights, weights=None):
         for j in (len(target_nodes_ids)):
@@ -101,7 +101,7 @@ class RuGraph:
                 weight = 1
             else:
                 weight = weights[j]
-            self.G.add_edges_from(node_id, target_nodes_ids[j], weight=weight, type=type_of_weights)
+            self.G.add_edges_from(node_id, target_nodes_ids[j], weight=weight, mtype=type_of_weights)
         if type_of_weights == 'predict':
             self.G.node(node_id)['has_predict_edges'] = True
 
@@ -123,7 +123,7 @@ class RuGraph:
         print 'plain nodes: ' + str(self.get_nodes_of_type('plain'))
         print 'input nodes: ' + str(self.get_nodes_of_type('input'))
         print 'active accumulators:' + str(self.candidates)
-        for acc_id in [i for i in self.G.nodes() if self.G.node[i]['type'] == 'acc']:
+        for acc_id in [i for i in self.G.nodes() if self.G.node[i]['mtype'] == 'acc']:
             self.G.node[acc_id]['acc_obj'].print_state()
         print "+++++++++++++++++++++++++++++"
 
@@ -144,7 +144,7 @@ class RuGraph:
             source = sources.popleft()
             activation = self.G.node[source]['activation']
             for target in self.G.successors_iter(source):  # рассылаем от узла сигнал ко всем адрессатам
-                if self.G.edge[source][target]['type'] != 'feed':
+                if self.G.edge[source][target]['mtype'] != 'feed':
                     break
                 w = self.G.edge[source][target]['weight']
                 self.G.node[target]['input'] += float(activation*w)
@@ -165,7 +165,7 @@ class RuGraph:
 
 
     def get_nodes_of_type(self, node_type):
-        return [n for n in self.G.nodes() if self.G.node[n]['type'] == node_type]
+        return [n for n in self.G.nodes() if self.G.node[n]['mtype'] == node_type]
 
     def delete_accumulators(self):
         self.log("deleting all accumulators...")
@@ -174,20 +174,20 @@ class RuGraph:
             self.G.remove_node(node_id)
 
     def number_of_feed_inputs(self, node):
-        return len([pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['type'] == 'feed'])
+        return len([pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['mtype'] == 'feed'])
 
     def activation_function(self, x):
         return 1 / (1 + math.exp(-x))  # sigmoid
 
     def find_accumulator_to_consolidate(self):
-        all_accs = [self.G.node[n]['acc_obj'] for n in self.G.nodes() if self.G.node[n]['type'] == 'acc']
+        all_accs = [self.G.node[n]['acc_obj'] for n in self.G.nodes() if self.G.node[n]['mtype'] == 'acc']
         good_accs = itertools.ifilter(lambda acc: acc.is_ready_for_consolidation(), all_accs)
         some_good_acc = next(good_accs, None)
         self.log("acc selected for consolidation: " + str(some_good_acc))
         return some_good_acc # подходит любой из них
 
     def get_most_active_nodes(self):
-        nodes = [n for n in self.G.nodes() if self.G.node[n]['type'] != 'acc' and
+        nodes = [n for n in self.G.nodes() if self.G.node[n]['mtype'] != 'acc' and
                  self.G.node[n]['activation_change'] >= ACTIVATION_THR]
         return nodes
 
@@ -246,7 +246,7 @@ class RuGraph:
         prediction_input = 0
         somebody_tried_to_predict = False
         for source_id in self.G.predecessors_iter(node_id):
-            if self.G.edge[source_id][node_id]['type'] == 'predict':
+            if self.G.edge[source_id][node_id]['mtype'] == 'predict':
                 somebody_tried_to_predict = True
                 w = self.G.edge[source_id][node_id]['weight']
                 prediction = self.G.edge[source_id][node_id]['current_prediction']
@@ -280,7 +280,7 @@ class RuGraph:
         for node_id in sources_of_predictions:
             activation = self.G.node[node_id]['activation']
             for target_id in self.G.successors_iter(node_id):
-                if self.G.edge[node_id][target_id]['type'] == 'predict':
+                if self.G.edge[node_id][target_id]['mtype'] == 'predict':
                     self.G.edge[node_id][target_id]['current_prediction'] = activation
 
     def consolidate(self, accumulator):
@@ -332,7 +332,7 @@ class RuGraph:
         self.inspect_graph()
 
     def save_droping_accs(self, filename="rugraph.gexf"):
-        accs = (n for n in self.G.nodes() if self.G.node[n]['type'] == 'acc')
+        accs = (n for n in self.G.nodes() if self.G.node[n]['mtype'] == 'acc')
         for node in accs:
             self.G.node[node]['acc_obj'] = 'None'
         nx.write_gexf(self.G, filename)

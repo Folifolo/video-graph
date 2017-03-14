@@ -5,13 +5,13 @@ class RuGraphInspector:
     # поля для каждого типа узлов
     ATTRS_NODE_MAP = {
         'acc'  :   {
-                    'type': 'acc',              # тип узла
+                    'mtype': 'acc',             # тип узла
                     'has_predict_edges': False, # исходит ли из него хоть одно ребро типа predict (нет)
                     'acc_obj': 'UN'             # объект-аккумулятор (см. класс DataAccumulator)
                     },
 
         'plain': {
-                    'type': 'plain',
+                    'mtype': 'plain',
                     'has_predict_edges': 'UN',
                     'bias': 'UN',              # биас узла
                     'waiting_inputs': 'UN',    # со скольки входов еще не получен сигнал
@@ -22,7 +22,7 @@ class RuGraphInspector:
                  },
 
         'input': {
-                  'type':'input',
+                  'mtype':'input',
                   'has_predict_edges': False,
                   'activation': 'UN',
                   'activation_change': 'UN',
@@ -33,16 +33,16 @@ class RuGraphInspector:
     ATTRS_EDGE_MAP = {
         'contextual': {
                         'weight': 'UN',
-                        'type': 'contextual'
+                        'mtype': 'contextual'
                       },
         'predict':    {
                         'weight': 'UN',
-                        'type': 'predict',
+                        'mtype': 'predict',
                         'current_prediction': 'UN'
                       },
         'feed':       {
                         'weight': 'UN',
-                        'type': 'feed'
+                        'mtype': 'feed'
                       }
     }
 
@@ -59,7 +59,7 @@ class RuGraphInspector:
         for node_id in G.nodes():
             try:
                 node_attrs = G.node[node_id]
-                node_type = node_attrs['type']
+                node_type = node_attrs['mtype']
                 handler = dispatcher[node_type]
                 is_ok = handler(node_attrs)
                 if not is_ok:
