@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*
 
 class RuGraphAnalizer:
-    def __init__(self, rugraph):
+    def __init__(self, rugraph, videos):
         pass
 
     def show_node_specialisation_first_layer(self, node):
@@ -11,7 +11,4 @@ class RuGraphAnalizer:
         # считаем взвешенную сумму каринок, а в качестве веса берем уровень кативности на картике
 
         #если получается равномерно серое нечто, то не специализирвался наш нейрон
-        pass
-
-    def get_clastering_coefficient(self):
         pass

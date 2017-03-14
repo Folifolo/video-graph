@@ -12,6 +12,10 @@ PREDICTION_THR = 0.7
 OUTCOME_LINKING_RADIUS = 15 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
 ACTIVATION_THR = 0.2
 
+# в графе нельзя использовать None, т.к. граф сохраняется в gexf, будет падение.
+# поэтому если надо None, то пишем 'None'
+
+
 class GraphError(Exception):
     def __init__(self, value):
         self.value = value
@@ -54,7 +58,7 @@ class RuGraph:
                         activation_change=0,
                         type='input',
                         has_predict_edges=False,
-                        acc_node_id=None
+                        acc_node_id='None'
                         )
 
     def add_plain_node(self, bias=0):
@@ -67,7 +71,7 @@ class RuGraph:
                         waiting_inputs=0,
                         has_predict_edges=False,
                         bias=bias,
-                        acc_node_id = None
+                        acc_node_id = 'None'
                         )
         return node_id
 
@@ -107,9 +111,9 @@ class RuGraph:
         cols = input_signal.shape[1]
         for i in range(rows):
             for j in range(cols):
-                activation_last_tact = self.G.node[(i, j)]['activation']
-                self.G.node[(i, j)]['activation'] = input_signal[i,j]
-                self.G.node[(i, j)]['activation_change'] = input_signal[i,j] - activation_last_tact
+                activation_last_tact = float(self.G.node[(i, j)]['activation'])
+                self.G.node[(i, j)]['activation'] = float(input_signal[i,j])
+                self.G.node[(i, j)]['activation_change'] = float(input_signal[i,j] - activation_last_tact)
 
     def print_graph_state(self):
         print "State:"
@@ -143,7 +147,8 @@ class RuGraph:
                 if self.G.edge[source][target]['type'] != 'feed':
                     break
                 w = self.G.edge[source][target]['weight']
-                self.G.node[target]['input'] += activation*w
+                self.G.node[target]['input'] += float(activation*w)
+
                 if self.G.node[target]['waiting_inputs'] > 1:
                     self.G.node[target]['waiting_inputs'] -= 1
                 else:  # этот узел получил данные ото всех, и может теперь сам становиться источником сигнала
@@ -152,11 +157,12 @@ class RuGraph:
                     input_to_activation = self.G.node[target]['input'] + self.G.node['bias']
                     new_activation = self.activation_function(input_to_activation)
                     change = activation - new_activation
-                    self.G.node[target]['activation'] = new_activation
-                    self.G.node[target]['activation_change'] = change
+                    self.G.node[target]['activation'] = float(new_activation)
+                    self.G.node[target]['activation_change'] = float(change)
         assert len(sinks) == 0 and len(sources) == 0, \
             "sources and sinks must become empty at the end of propagation, but they did not"
         self.log("propagation done")
+
 
     def get_nodes_of_type(self, node_type):
         return [n for n in self.G.nodes() if self.G.node[n]['type'] == node_type]
@@ -229,7 +235,7 @@ class RuGraph:
         # если аккумулятора на узле нет, то создадам его и подсоединим к контекстной окрестности
         for node in initial_node_list:
             acc_for_node = self.G.node[node]['acc_node_id']
-            if acc_for_node is None:
+            if acc_for_node is 'None':
                 acc_for_node = self.add_acc_node(node)
                 ids = self.G.node[acc_for_node]['acc_obj'].get_ids()
                 self.connect_input_weights_to_node(node, ids, 'contextual')
@@ -325,7 +331,10 @@ class RuGraph:
                 self.delete_accumulators()
         self.inspect_graph()
 
-    def save(self, filename="rugraph.gexf"):
+    def save_droping_accs(self, filename="rugraph.gexf"):
+        accs = (n for n in self.G.nodes() if self.G.node[n]['type'] == 'acc')
+        for node in accs:
+            self.G.node[node]['acc_obj'] = 'None'
         nx.write_gexf(self.G, filename)
 
     def inspect_graph(self):
