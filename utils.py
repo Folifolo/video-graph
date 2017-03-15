@@ -136,6 +136,28 @@ def sample_graph_networkx():
     nx.draw_spectral(G)
     plt.show()
 
+def get_k_order_neighborhood(G, node, cutoff):
+    waves = {0: [node]}
+    for wave_i in range(1, cutoff):
+        waves[wave_i] = get_neighbors_for_nodes(G, waves[wave_i-1])
+        if wave_i > 2:
+            waves[wave_i] = [x for x in waves[wave_i] if x not in waves[wave_i-2] ]
+    result = {}
+    for wave_i in range(0, cutoff):
+        if waves[wave_i] is None or len(waves[wave_i]) == 0:
+            break
+        for node in waves[wave_i]:
+            if node not in result:
+                result[node] = wave_i
+    return result
+
+def get_neighbors_for_nodes(G, nodes):
+    neighbors = []
+    for node in nodes:
+        for neighbor in nx.all_neighbors(G, node):
+            neighbors.append(neighbor)
+    return neighbors
+
 import scipy
 def generate_sparse_matrix(n, m):
     M = scipy.sparse.random(n, m, density = 0.25 )

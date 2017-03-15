@@ -6,11 +6,12 @@ import networkx as nx
 import ruconsolidator as ruc
 import rugraph_inspector
 import ru_data_accumulator
+import utils
 
 #константы алгоритма
-PREDICTION_THR = 0.7
-OUTCOME_LINKING_RADIUS = 15 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
-ACTIVATION_THR = 0.2
+PREDICTION_THR = 0.4
+OUTCOME_LINKING_RADIUS = 8 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
+ACTIVATION_THR = 0.1
 
 # в графе нельзя использовать None, т.к. граф сохраняется в gexf, будет падение.
 # поэтому если надо None, то пишем 'None'
@@ -205,6 +206,7 @@ class RuGraph:
                  str(len(most_active) - len(unpredicted)))
         self.add_as_outcomes(unpredicted)
         self.add_as_contexts(unpredicted)
+        self.log("accumulators updated")
 
     def add_as_outcomes(self, outcomes):
         for acc_id in self.candidates:
@@ -214,14 +216,14 @@ class RuGraph:
                 self.candidates.remove(acc_id)
 
     def find_nearest_from_list(self, acc, outcomes):
-        nearest_nodes = nx.single_source_shortest_path_length(self.G, acc, cutoff=OUTCOME_LINKING_RADIUS)
+        nearest_nodes = utils.get_k_order_neighborhood(self.G, acc, cutoff=OUTCOME_LINKING_RADIUS)
         print "NEAREST :" + str(nearest_nodes)
         for k in list(nearest_nodes):
             if k not in outcomes:
                 del nearest_nodes[k]
         if len(nearest_nodes) == 0:
             return None
-        return max(nearest_nodes, key=lambda x: x.value())
+        return max(nearest_nodes, key=lambda x: x[1])
 
     def clear_last_activity_in_accs(self):
         for acc_node in self.get_nodes_of_type('acc'):
@@ -308,11 +310,11 @@ class RuGraph:
             node_id = self.add_plain_node(bias=b1[i])
             self.connect_input_weights_to_node(node_id,
                                                source_nodes_ids=source_nodes,
-                                               weights=W1[:,i],
+                                               weights=W1[:, i],
                                                type_of_weights='feed')
             self.connect_output_weights_to_node(node_id,
                                                 target_nodes_ids=sink_nodes,
-                                                weights=W2[i,:],
+                                                weights=W2[i, :],
                                                 type_of_weights='predict')
         for i in range(len(sink_nodes)):
             self.G.node[sink_nodes[i]]['bias'] = b2[i]
@@ -336,6 +338,7 @@ class RuGraph:
         for node in accs:
             self.G.node[node]['acc_obj'] = 'None'
         nx.write_gexf(self.G, filename)
+        self.log("the graph was saved to file (the accs were cutted off):" + filename)
 
     def inspect_graph(self):
         inspector = rugraph_inspector.RuGraphInspector()
