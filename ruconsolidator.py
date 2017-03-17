@@ -6,21 +6,27 @@ import lasagne
 
 # документация: https://namenaro.gitbooks.io/struktura-proekta/content/chapter1.html
 #константы алгоритма
-CUCCESS_THR = 0.8 #при какой точности распознавания считать, что обучение удалось
-NUM_HIDDEN_UNITS = 4
-BATCH_SIZE = 10
+CUCCESS_THR = 0.5 #при какой точности распознавания считать, что обучение удалось
+NUM_HIDDEN_UNITS = 3
+BATCH_SIZE = 1
 LEARNING_RATE = 0.01
-NUM_EPOCHS = 100
+NUM_EPOCHS = 200
 
 class RuConsolidator:
-    def __init__(self, accumulator):
-        self.X_train, self.Y_train = accumulator.get_training_data()
-        print "before - " + str(self.X_train)
+    def __init__(self, x, y, log_enabled=True):
+        self.log_enabled = log_enabled
+        #self.X_train, self.Y_train = accumulator.get_training_data()
+        self.X_train = np.array(x)
+        self.Y_train = np.array(y)
+        self.print_data()
         self.W_in_hid = None
         self.W_hid_out = None
         self.b_in_hid = None
         self.b_hid_out = None
 
+    def log(self, msg):
+        if self.log_enabled:
+            print "[RuConsolidator] " + msg
 
     def print_data(self):
         print "X_train:"
@@ -73,7 +79,7 @@ class RuConsolidator:
         updates = lasagne.updates.nesterov_momentum(
             loss, params, learning_rate=LEARNING_RATE, momentum=0.9)
         train_fn = theano.function([input_var, target_var], loss, updates=updates)
-
+        self.log("consolidation staring...")
         # наконец -- само обучение
         for epoch in range(NUM_EPOCHS):
             train_error = 0.
@@ -83,6 +89,7 @@ class RuConsolidator:
                 train_error += train_fn(inputs, targets)
                 num_batches += 1
                 avg_err_over_epoch = train_error / num_batches
+                self.log("err: " + str(avg_err_over_epoch))
                 if avg_err_over_epoch <= 1 - CUCCESS_THR:
                     # да-да, без тестовой части датасета.
                     # тестироваться сетка будет после встраивания в граф - будет предказывать и сверять с истиной
@@ -92,7 +99,51 @@ class RuConsolidator:
                     self.b_in_hid = network.layers_['hidden_layer'].b.get_value()
                     self.b_hid_out = network.layers_['output_layer'].b.get_value()
                     break
+        if success:
+            self.log("SUCESSFULLY!")
+        else:
+            self.log("consolidation was not successfull")
         return success
 
     def get_trained_weights(self):
         return self.W_in_hid, self.W_hid_out, self.b_in_hid, self.b_hid_out
+
+class Test:
+    def __init__(self):
+        self.X = [[0.0, 0, 0.1, 0.7],   #1 (1)
+                  [0.0, 0, 0.0, 0.9],   #1 (2)
+                  [0.0, 0, 0.3, 0.7],   #1 (3)
+                  [0.0, 0, 0.2, 0.8],   #1 (4)
+                  [0.0, 0, 0.2, 0.9],   #1 (5)
+                  [0.0, 0, 0.1, 0.7],   #1 (6)
+                  [0.0, 0, 0.2, 0.8],   #1 (7)
+                  [0.0, 0, 0.0, 0.9],   #1 (8)
+                  [0.0, 0, 0.2, 0.8],   #1 (9)
+                  [0.0, 0.0, 0.3, 0.6], #1 (10)
+                  [0.0, 0.0, 0.2, 0.9], #1 (11)
+                  [0, 0.1, 0.2, 1.0],   #1 (12)
+                  [0.8, 0.0, 0.0, 0.0],  #2       (1)
+                  [0.9, 0.2, 0.0, 0.0],  #2       (2)
+                  [0.7, 0.1, 0.0, 0.0],  #2       (3)
+                  [0.8, 0.2, 0.0, 0.0],  #2       (4)
+                  [0.9, 0.3, 0.1, 0.0],  #2       (5)
+                  [0.8, 0.0, 0.0, 0.0],  #2       (6)
+                  [0.8, 0.2, 0.0, 0.0],  #2       (7)
+                  [0.8, 0.0, 0.0, 0.0],  #2       (8)
+                  [1.0, 0.3, 0.0, 0.0],  #2       (9)
+                  [1.0, 0.0, 0.0, 0.0],  #2       (10)
+                  [1.0, 0.1, 0.0, 0.0],  #2       (11)
+                  [0.9, 0.2, 0.1, 0.0]   #2       (12)
+                  ]
+        self.Y = []
+        for i in range(12):
+            self.Y.append(1)
+        for i in range(12):
+            self.Y.append(2)
+
+    def train(self):
+        consolidator = RuConsolidator(x=self.X, y=self.Y)
+        res = consolidator.consolidate()
+
+test = Test()
+test.train()

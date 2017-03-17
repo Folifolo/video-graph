@@ -2,16 +2,19 @@
 import itertools
 import math
 from collections import deque
+import matplotlib.pyplot as plt
+import numpy as np
 import networkx as nx
 import ruconsolidator as ruc
 import rugraph_inspector
 import ru_data_accumulator as acm
-import utils
+import ruvisualiser as ruvis
+
 
 #константы алгоритма
-PREDICTION_THR = 0.4
-OUTCOME_LINKING_RADIUS = 8 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
-ACTIVATION_THR = 0.1
+PREDICTION_THR = 1.0
+OUTCOME_LINKING_RADIUS = 4 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
+ACTIVATION_THR = 0.001
 NEIGHBORHOOD_RADIUS = 4
 
 # в графе нельзя использовать None, т.к. граф сохраняется в gexf, будет падение.
@@ -28,11 +31,15 @@ class GraphError(Exception):
 
 class RuGraph:
     def __init__(self, input_shape, log=False):
+        self.num_epizodes = 0
+        self.iteration = 0
+        self.diagram = ruvis.UpdatingDiagram()
+        self.diagram.on_launch()
         self.G = nx.DiGraph()
         self.generator = itertools.count(0)
         self.max_layer = -1
         self.log_enabled = log
-        self.iteration = 0
+
         self.input_shape = input_shape
         self.candidates = []    # захешируем айдишники узлов-активных-аккумуляторов
         self._create_input_layer()
@@ -73,7 +80,7 @@ class RuGraph:
                         waiting_inputs=0,
                         has_predict_edges=False,
                         bias=bias,
-                        acc_node_id = 'None'
+                        acc_node_id='None'
                         )
         return node_id
 
@@ -214,12 +221,12 @@ class RuGraph:
             outcome_id = self.find_nearest_from_list(acc_id, outcomes)
             if outcome_id is not None:
                 self.G.node[acc_id]['acc_obj'].add_outcome(outcome_id)
-                self.candidates.remove(acc_id)
+                self.num_epizodes += 1
 
     def find_nearest_from_list(self, acc, outcomes):
         center_of_acc = self.G.node[acc]['acc_obj'].id
         nearest_nodes = self.get_ego_neighborhood(node=center_of_acc, cutoff=OUTCOME_LINKING_RADIUS)
-        print "NEAREST :" + str(nearest_nodes)
+        self.log("looking among nearest.. :" + str(nearest_nodes))
         for k in list(nearest_nodes):
             if k not in outcomes:
                 del nearest_nodes[k]
@@ -334,9 +341,13 @@ class RuGraph:
         for i in range(len(sink_nodes)):
             self.G.node[sink_nodes[i]]['bias'] = b2[i]
 
+    def show_progress(self):
+        self.diagram.update(x_point=self.iteration, y_point=self.num_epizodes)
+
     def process_next_input(self, input_signal):
         self.iteration += 1
         print "--------------------ITERATION " + str(self.iteration) + "--------------------"
+        self.show_progress()
         self.print_graph_state()
         self.propagate(input_signal)
         self.prepare_predictions()
