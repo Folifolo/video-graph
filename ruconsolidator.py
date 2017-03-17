@@ -43,6 +43,7 @@ class RuConsolidator:
                                             nonlinearity=lasagne.nonlinearities.sigmoid,
                                             W=lasagne.init.GlorotUniform(),
                                             name="hidden_layer")
+        print l_hidden.W
         l_out = lasagne.layers.DenseLayer(l_hidden, num_units=classes_num,
                                         nonlinearity=lasagne.nonlinearities.softmax,
                                         name="output_layer")
