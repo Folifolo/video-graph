@@ -354,7 +354,7 @@ class RuGraph:
         self.update_accumulators()
         accumulator = self.find_accumulator_to_consolidate()
         if accumulator is not None:
-            success = self.consolidate(accumulator)
+            success = self.consolidate(accumulator.get_training_data())
             if success:
                 self.delete_accumulators()
         self.inspect_graph()
