@@ -78,7 +78,10 @@ class RuConsolidator:
         params = lasagne.layers.get_all_params(network, trainable=True)
         updates = lasagne.updates.nesterov_momentum(
             loss, params, learning_rate=LEARNING_RATE, momentum=0.9)
-        train_fn = theano.function([input_var, target_var], loss, updates=updates)
+        train_fn = theano.function([input_var, target_var],
+                                   loss,
+                                   updates=updates,
+                                   allow_input_downcast=True) # float64 ->float32
         self.log("consolidation staring...")
         # наконец -- само обучение
         for epoch in range(NUM_EPOCHS):
@@ -145,5 +148,5 @@ class Test:
         consolidator = RuConsolidator(x=self.X, y=self.Y)
         res = consolidator.consolidate()
 
-test = Test()
-test.train()
+mtest = Test()
+mtest.train()
