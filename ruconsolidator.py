@@ -8,14 +8,13 @@ import lasagne
 #константы алгоритма
 CUCCESS_THR = 0.5 #при какой точности распознавания считать, что обучение удалось
 NUM_HIDDEN_UNITS = 3
-BATCH_SIZE = 1
+BATCH_SIZE = 24
 LEARNING_RATE = 0.01
 NUM_EPOCHS = 200
 
 class RuConsolidator:
     def __init__(self, x, y, log_enabled=True):
         self.log_enabled = log_enabled
-        #self.X_train, self.Y_train = accumulator.get_training_data()
         self.X_train = np.array(x)
         self.Y_train = np.array(y)
         self.print_data()
