@@ -4,8 +4,9 @@ import theano
 import theano.tensor as T
 import lasagne
 
+# документация: https://namenaro.gitbooks.io/struktura-proekta/content/chapter1.html
 #константы алгоритма
-CUSCCESS_THRESHOLD = 0.8 #при какой точности распознавания считать, что обучение удалось
+CUCCESS_THR = 0.8 #при какой точности распознавания считать, что обучение удалось
 NUM_HIDDEN_UNITS = 4
 BATCH_SIZE = 10
 LEARNING_RATE = 0.01
@@ -14,14 +15,23 @@ NUM_EPOCHS = 100
 class RuConsolidator:
     def __init__(self, accumulator):
         self.X_train, self.Y_train = accumulator.get_training_data()
+        print "before - " + str(self.X_train)
         self.W_in_hid = None
         self.W_hid_out = None
         self.b_in_hid = None
         self.b_hid_out = None
 
+
+    def print_data(self):
+        print "X_train:"
+        print np.array_str(self.X_train, precision=2)
+        print "Y_train:"
+        print np.array_str(self.Y_train, precision=2)
+
     def _build_model(self, input_var=None):
-        input_data_len = self.X_train.shape()[1]
-        classes_num = self.Y_train.shape()[0]
+        classes_num = self.Y_train.shape[0]
+        input_data_len = self.X_train.shape[1]
+        print str(input_data_len) + " ======================"
         l_in = lasagne.layers.InputLayer(shape=(BATCH_SIZE, input_data_len),
                                          input_var=input_var)
         l_hidden = lasagne.layers.DenseLayer(l_in, num_units=NUM_HIDDEN_UNITS,
@@ -49,7 +59,7 @@ class RuConsolidator:
     def consolidate(self):
         success = False
         # символьные входные/выходные переменные
-        input_var = T.tensor2('inputs')
+        input_var = theano.tensor.matrix(name='inputs')
         target_var = T.ivector('targets')
 
         # символьная оптимизируемая функция
@@ -73,7 +83,7 @@ class RuConsolidator:
                 train_error += train_fn(inputs, targets)
                 num_batches += 1
                 avg_err_over_epoch = train_error / num_batches
-                if avg_err_over_epoch <= 1 - CUSCCESS_THRESHOLD:
+                if avg_err_over_epoch <= 1 - CUCCESS_THR:
                     # да-да, без тестовой части датасета.
                     # тестироваться сетка будет после встраивания в граф - будет предказывать и сверять с истиной
                     success = True

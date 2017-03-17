@@ -1,38 +1,32 @@
 # -*- coding: utf-8 -*
-import numpy as np
-import networkx as nx
+import utils
 
-NEIGHBORHOOD_RADIUS = 4
-DESIRED_NUMBER_ENTRYES_PER_OUTCOME = 20
+DESIRED_NUMBER_ENTRYES_PER_OUTCOME = 10
 DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
+MIN_ENTRY_LEN = 2
 
 class DataAccumulator:
-    def __init__(self, node_id):
-        self.ids = []
+    def __init__(self, node_id, context_nodes, log=True):
+        self.ids = context_nodes
         self.outcomes_entries = {}
         self.id = node_id
         self.entry_candidate = None
+        self.log_enabled = log
 
-    def _get_entry_for_node(self, G):
-        if len(self.ids) == 0:
-            self.ids = nx.single_source_shortest_path_length(G, self.id, cutoff=NEIGHBORHOOD_RADIUS).keys()
-            for n in self.ids:
-                if G.node[n]['mtype'] not in ['plane', 'input']:
-                     self.ids.remove(n)
-        entry = []
-        num_of_nodes_in_context = 0
-        for i in self.ids:
-            if G.node[i]['mtype'] in ['plane', 'input']:
-                entry.append(G.node[i]['activation'])
-                num_of_nodes_in_context += 1
-        assert len(entry) == num_of_nodes_in_context, 'topology changed since the last usage of accumulator, and accum was not erased'
-        return entry
+    def log(self, msg):
+        if self.log_enabled:
+            print "[DataAcc class] " + msg
 
     def add_new_entry_candidate(self, G):
-        self.entry_candidate = self._get_entry_for_node(G)
+        assert len(self.ids) > MIN_ENTRY_LEN, "corrupted accumulator " + str(self.id)
+        entry = []
+        for i in self.ids:
+            assert G.node[i]['mtype'] in ['plain', 'input'], "wrong type of context neuron"
+            entry.append(G.node[i]['activation'])
+        self.entry_candidate = entry
 
     def add_outcome(self, outcome_id):
-        assert self.entry_candidate is not None
+        assert self.entry_candidate is not None, "context was not initialized for that event"
         self.outcomes_entries[outcome_id] = self.entry_candidate
         self.entry_candidate = None
 
@@ -52,12 +46,18 @@ class DataAccumulator:
 
     def get_training_data(self):
         good_outcomes = self._get_good_outcomes()
-        X_train, Y_train = []
+        X_train = []
+        Y_train = []
+        i = 0
         for outcome in good_outcomes:
             for entry in self.outcomes_entries[outcome]:
+                i += 1
                 X_train.append(entry)
+                self.log("new entry:--------------------------------")
+                self.log( str(i) + "^X = " + str(entry))
+                self.log( str(i) + "^Y = " + str(outcome))
                 Y_train.append(outcome)
-        return np.array(X_train), np.array(Y_train)
+        return X_train, Y_train
 
     def get_ids(self):
         return self.ids
@@ -69,3 +69,4 @@ class DataAccumulator:
         print "AСС: center node " + str(self.id) + "~~~~~~~~~~~~"
         print "entries: " + str(self.outcomes_entries)
         print "active entry: " + str (self.entry_candidate)
+

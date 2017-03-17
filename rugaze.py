@@ -11,16 +11,20 @@ class SimpleVideoGaze:
         assert side != 0, "gaze square is zero"
         self.video_name = video_name
         if not os.path.isfile(self.video_name):
+            self.side = 0
             print 'file doesn\'t exist'
             return
         self. left_top_coord = left_top_coord
-        self.capture = cv2.VideoCapture(self.video_name)
-        self.prev_frame = None
+        self.side = side
         self.show = show
         self.print_it = print_it
         if print_it: # весьма замедляет всё, но зато большую матрицу всю видно
             np.set_printoptions(threshold=np.inf)
-        self.side = side
+        self.init_video()
+
+    def init_video(self):
+        self.capture = cv2.VideoCapture(self.video_name)
+        self.prev_frame = None
         assert self.capture.isOpened(), "video file corrupted?"
         ret, frame = self.capture.read()
         if ret is True:
@@ -28,6 +32,14 @@ class SimpleVideoGaze:
         else:
             print 'one-frame video?'
 
+    def restart(self, video_name=None):
+        if video_name is not None:
+            self.video_name = video_name
+        print "GAZE RESTARTED: " + self.video_name
+        if self.capture.isOpened():
+            self.capture.release()
+            cv2.destroyAllWindows()
+        self.init_video()
 
     def get_shape(self):
         return (self.side, self.side)
@@ -101,4 +113,3 @@ class GazeTest:
 
 #my_gaze = GazeTest()
 #my_gaze.test()
-

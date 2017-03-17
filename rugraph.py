@@ -5,13 +5,14 @@ from collections import deque
 import networkx as nx
 import ruconsolidator as ruc
 import rugraph_inspector
-import ru_data_accumulator
+import ru_data_accumulator as acm
 import utils
 
 #константы алгоритма
 PREDICTION_THR = 0.4
 OUTCOME_LINKING_RADIUS = 8 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
 ACTIVATION_THR = 0.1
+NEIGHBORHOOD_RADIUS = 4
 
 # в графе нельзя использовать None, т.к. граф сохраняется в gexf, будет падение.
 # поэтому если надо None, то пишем 'None'
@@ -26,7 +27,7 @@ class GraphError(Exception):
 
 
 class RuGraph:
-    def __init__(self, input_shape, log=True):
+    def __init__(self, input_shape, log=False):
         self.G = nx.DiGraph()
         self.generator = itertools.count(0)
         self.max_layer = -1
@@ -76,9 +77,9 @@ class RuGraph:
                         )
         return node_id
 
-    def add_acc_node(self, initial_node):
+    def add_acc_node(self, initial_node, context_nodes):
         acc_node_id = self.generator.next()
-        acc = ru_data_accumulator.DataAccumulator(initial_node)
+        acc = acm.DataAccumulator(initial_node, context_nodes)
         self.G.add_node(acc_node_id,
                         mtype='acc',
                         has_predict_edges=False,
@@ -117,16 +118,16 @@ class RuGraph:
                 self.G.node[(i, j)]['activation_change'] = float(input_signal[i,j] - activation_last_tact)
 
     def print_graph_state(self):
-        print "State:"
-        print "Max level: " + str(self.max_layer + 1)
-        print "Number of edges: " + str(self.G.number_of_edges())
-        print "acc nodes: " + str(self.get_nodes_of_type('acc'))
-        print 'plain nodes: ' + str(self.get_nodes_of_type('plain'))
-        print 'input nodes: ' + str(self.get_nodes_of_type('input'))
-        print 'active accumulators:' + str(self.candidates)
-        for acc_id in [i for i in self.G.nodes() if self.G.node[i]['mtype'] == 'acc']:
-            self.G.node[acc_id]['acc_obj'].print_state()
-        print "+++++++++++++++++++++++++++++"
+        msg = "State: " \
+        + "\nMax level: " + str(self.max_layer + 1)\
+        + "\nNumber of edges: " + str(self.G.number_of_edges())\
+        + "\nacc nodes: " + str(self.get_nodes_of_type('acc'))\
+        + '\nplain nodes: ' + str(self.get_nodes_of_type('plain'))\
+        + '\ninput nodes: ' + str(self.get_nodes_of_type('input'))\
+        + '\nactive accumulators:' + str(self.candidates)\
+        #for acc_id in [i for i in self.G.nodes() if self.G.node[i]['mtype'] == 'acc']:
+            #self.G.node[acc_id]['acc_obj'].print_state()
+        self.log(msg)
 
     def log(self, message):
         if self.log_enabled:
@@ -216,7 +217,8 @@ class RuGraph:
                 self.candidates.remove(acc_id)
 
     def find_nearest_from_list(self, acc, outcomes):
-        nearest_nodes = utils.get_k_order_neighborhood(self.G, acc, cutoff=OUTCOME_LINKING_RADIUS)
+        center_of_acc = self.G.node[acc]['acc_obj'].id
+        nearest_nodes = self.get_ego_neighborhood(node=center_of_acc, cutoff=OUTCOME_LINKING_RADIUS)
         print "NEAREST :" + str(nearest_nodes)
         for k in list(nearest_nodes):
             if k not in outcomes:
@@ -238,11 +240,24 @@ class RuGraph:
         for node in initial_node_list:
             acc_for_node = self.G.node[node]['acc_node_id']
             if acc_for_node is 'None':
-                acc_for_node = self.add_acc_node(node)
+                context_nodes = self.get_ego_neighborhood(node,
+                                                          cutoff=NEIGHBORHOOD_RADIUS).keys()
+                if len(context_nodes) < acm.MIN_ENTRY_LEN:
+                    continue
+                acc_for_node = self.add_acc_node(node, context_nodes)
                 ids = self.G.node[acc_for_node]['acc_obj'].get_ids()
                 self.connect_input_weights_to_node(node, ids, 'contextual')
             self.G.node[acc_for_node]['acc_obj'].add_new_entry_candidate(self.G)
         self.candidates = [self.G.node[n]['acc_node_id'] for n in initial_node_list]
+
+    def get_ego_neighborhood(self, node, cutoff, node_types=['plain', 'input']):
+        assert self.G.node[node]['mtype'] in node_types, 'we consider node itself also to be a part of it\'s context'
+        ego = nx.ego_graph(self.G, node, radius=cutoff, center=True, undirected=True)
+        for n in ego.nodes():
+            if ego.node[n]['mtype'] not in node_types:
+                ego.remove_node(n)
+        return nx.shortest_path_length(ego, source=node)
+
 
     def calculate_prediction_for_node(self, node_id):
         prediction_input = 0
@@ -321,7 +336,7 @@ class RuGraph:
 
     def process_next_input(self, input_signal):
         self.iteration += 1
-        self.log("--------------------ITERATION " + str(self.iteration) + "--------------------")
+        print "--------------------ITERATION " + str(self.iteration) + "--------------------"
         self.print_graph_state()
         self.propagate(input_signal)
         self.prepare_predictions()
