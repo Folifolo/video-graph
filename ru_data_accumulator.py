@@ -6,7 +6,7 @@ DESIRED_NUMBER_OF_GOOD_OUTCOMES = 2
 MIN_ENTRY_LEN = 2
 
 class DataAccumulator:
-    def __init__(self, node_id, context_nodes, log=True):
+    def __init__(self, node_id, context_nodes, log=False):
         self.ids = context_nodes
         self.outcomes_entries = {}
         self.id = node_id
@@ -27,7 +27,9 @@ class DataAccumulator:
 
     def add_outcome(self, outcome_id):
         assert self.entry_candidate is not None, "context was not initialized for that event"
-        self.outcomes_entries[outcome_id] = self.entry_candidate
+        if outcome_id not in self.outcomes_entries:
+            self.outcomes_entries[outcome_id] = []
+        self.outcomes_entries[outcome_id].append(self.entry_candidate)
         self.entry_candidate = None
 
     def _get_good_outcomes(self):
@@ -48,14 +50,10 @@ class DataAccumulator:
         good_outcomes = self._get_good_outcomes()
         X_train = []
         Y_train = []
-        i = 0
         for outcome in good_outcomes:
             for entry in self.outcomes_entries[outcome]:
-                i += 1
+                assert len(entry) > MIN_ENTRY_LEN
                 X_train.append(entry)
-                self.log("new entry:--------------------------------")
-                self.log( str(i) + "^X = " + str(entry))
-                self.log( str(i) + "^Y = " + str(outcome))
                 Y_train.append(outcome)
         return X_train, Y_train
 
@@ -68,5 +66,5 @@ class DataAccumulator:
     def print_state(self):
         print "AСС: center node " + str(self.id) + "~~~~~~~~~~~~"
         print "entries: " + str(self.outcomes_entries)
-        print "active entry: " + str (self.entry_candidate)
+        print "active entry: " + str(self.entry_candidate)
 

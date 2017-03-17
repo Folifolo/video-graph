@@ -5,7 +5,7 @@ import rugraph as rug
 print "--------test-------"
 video = 'bigvideo.avi'
 
-gaze = rugaze.SimpleVideoGaze(video_name=video, side=10, left_top_coord=(130,120),print_it=False )
+gaze = rugaze.SimpleVideoGaze(video_name=video, side=10, left_top_coord=(130,120), print_it=False)
 
 input_layer_shape = gaze.get_shape()
 graph = rug.RuGraph(input_layer_shape)
