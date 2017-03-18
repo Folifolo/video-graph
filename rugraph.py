@@ -309,7 +309,7 @@ class RuGraph:
 
     def consolidate(self, accumulator):
         self.log("try to consolidate acuumulator for node " + str(accumulator.id) + "...")
-        consolidation = ruc.RuConsolidator(accumulator.get_training_data())
+        consolidation = ruc.RuConsolidator(accumulator.get_training_data()[0],accumulator.get_training_data()[1])
         success = consolidation.consolidate()
         if success:
             W1, W2, b1, b2 = consolidation.get_trained_weights()
