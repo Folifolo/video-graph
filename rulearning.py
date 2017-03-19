@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*
 import rugaze
 import rugraph as rug
+from rugraph_analizer import RuGraphAnalizer
 
 print "--------test-------"
 video = 'bigvideo.avi'
@@ -24,4 +25,8 @@ while True:
 
 print "learning ended"
 graph.save_droping_accs('test.gexf')
+
+# посмотрим, чему научились нейроны
+# analizer = RuGraphAnalizer(gaze=gaze, rugraph=graph)
+
 

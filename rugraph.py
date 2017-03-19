@@ -148,7 +148,7 @@ class RuGraph:
         # надо их очистить от значений с прошлых выховов этий функции
         for n in sinks:
             self.G.node[n]['input'] = 0
-            self.G.node[n]['waiting_inputs'] = self.number_of_feed_inputs(n)
+            self.G.node[n]['waiting_inputs'] = len(self.get_feed_inputs(n))
         while len(sources) != 0:
             source = sources.popleft()
             activation = self.G.node[source]['activation']
@@ -182,8 +182,8 @@ class RuGraph:
         for node_id in accumulators:
             self.G.remove_node(node_id)
 
-    def number_of_feed_inputs(self, node):
-        return len([pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['mtype'] == 'feed'])
+    def get_feed_inputs(self, node):
+        return [pred for pred in self.G.predecessors(node) if self.G.edge[pred][node]['mtype'] == 'feed']
 
     def activation_function(self, x):
         return 1 / (1 + math.exp(-x))  # sigmoid
@@ -340,6 +340,29 @@ class RuGraph:
                                                 type_of_weights='predict')
         for i in range(len(sink_nodes)):
             self.G.node[sink_nodes[i]]['bias'] = b2[i]
+
+    def get_receptive_field_for_node(self, node):
+        upper_nodes = [node]
+        lower_nodes = set()
+        counter_of_iterations = 0
+        while True:
+            for n in upper_nodes:
+                lower_nodes |= set(self.get_feed_inputs(n))  # union
+            # если в lower_nodes только сенсоры, то вернуть эти сенсоры
+            # используем тот факт, что feed-веса входят только в plain-ноды
+            def is_plain_node(item):
+                return self.G.node[item]['mtype'] == 'plain'
+            upper_nodes = filter(is_plain_node, lower_nodes)
+            if len(upper_nodes) == 0:
+                assert len(lower_nodes) > 0
+                return lower_nodes
+            else:
+                lower_nodes.clear()
+            counter_of_iterations += 1
+            assert counter_of_iterations <= self.max_layer + 1
+
+    def get_node_activity(self, node):
+        return self.G.node[node]['activity']
 
     def show_progress(self):
         self.diagram.update(x_point=self.iteration, y_point=self.num_epizodes)
