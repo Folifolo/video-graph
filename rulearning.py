@@ -27,6 +27,8 @@ print "learning ended"
 graph.save_droping_accs('test.gexf')
 
 # посмотрим, чему научились нейроны
-# analizer = RuGraphAnalizer(gaze=gaze, rugraph=graph)
+analizer = RuGraphAnalizer(gaze=gaze, rugraph=graph)
+results, counter = analizer.get_nodes_specialisations(graph.get_nodes_of_type('plain'))
+analizer.save_results_to_files(results, counter)
 
 

@@ -4,6 +4,8 @@ import os
 import scipy.misc
 import re
 
+
+# класс позволяет сохранить ввиде картинки то, на что "натаскался" заданный нейрон(ы) графа
 class RuGraphAnalizer:
 
     def __init__(self, gaze, rugraph):
@@ -11,7 +13,7 @@ class RuGraphAnalizer:
         self.graph = rugraph
         self.gaze.restart()
 
-    def get_node_specialisation(self, node):
+    def get_node_specialisation(self, node, need_save=True):
         sensors_field = self.graph.get_receptive_field_for_node(node)
         result = np.zeros(self.graph.input_shape)
         counter = 0
@@ -24,6 +26,9 @@ class RuGraphAnalizer:
             what_node_watches_to = self.apply_mask(new_frame, mask=sensors_field)
             result = result + activity_in_node*what_node_watches_to
             counter += 1
+        if need_save:
+            filename = 'counter_' + str(counter) + '_node_' + str(node) + '.png'
+            scipy.misc.toimage(result, cmin=0.0, cmax=1.0).save(filename)
         return result, counter
 
     def apply_mask(self, matrix, mask):
@@ -34,11 +39,11 @@ class RuGraphAnalizer:
         return matrix
 
     def get_nodes_specialisations(self, nodes):
-        sensor_fields = {}
+        sensors_fields = {}
         counter = 0
         results = {}
         for node in nodes:
-            sensor_fields[node] = self.graph.get_receptive_field_for_node(node)
+            sensors_fields[node] = self.graph.get_receptive_field_for_node(node)
             results[node] = np.zeros(self.graph.input_shape)
             counter = 0
         while True:
