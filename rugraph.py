@@ -39,7 +39,6 @@ class RuGraph:
         self.generator = itertools.count(0)
         self.max_layer = -1
         self.log_enabled = log
-
         self.input_shape = input_shape
         self.candidates = []    # захешируем айдишники узлов-активных-аккумуляторов
         self._create_input_layer()
@@ -363,6 +362,9 @@ class RuGraph:
 
     def get_node_activity(self, node):
         return self.G.node[node]['activity']
+
+    def get_nodes_activities(self, nodes):
+        return {node: self.G.node[node]['activity'] for node in nodes}
 
     def show_progress(self):
         self.diagram.update(x_point=self.iteration, y_point=self.num_epizodes)

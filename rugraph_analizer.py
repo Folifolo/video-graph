@@ -11,7 +11,8 @@ class RuGraphAnalizer:
 
     def get_node_specialisation(self, node):
         sensors_field = self.graph.get_receptive_field_for_node(node)
-        result = np.zeros(sensors_field.shape)
+        result = np.zeros(self.graph.input_shape)
+        counter = 0
         while True:
             new_frame = self.gaze.get_next_fixation()
             if new_frame is None:
@@ -20,7 +21,8 @@ class RuGraphAnalizer:
             activity_in_node = self.graph.get_node_activity(node)
             what_node_watches_to = self.apply_mask(new_frame, mask=sensors_field)
             result = result + activity_in_node*what_node_watches_to
-        return result
+            counter += 1
+        return result, counter
 
     def apply_mask(self, matrix, mask):
         for col in range(matrix.shape[1]):
@@ -29,5 +31,38 @@ class RuGraphAnalizer:
                     matrix[row, col] = 0
         return matrix
 
-    def get_all_nodes_specialisations(self):
-        pass
+    def get_nodes_specialisations(self, nodes):
+        sensor_fields = {}
+        counter = 0
+        results = {}
+        for node in nodes:
+            sensor_fields[node] = self.graph.get_receptive_field_for_node(node)
+            results[node] = np.zeros(self.graph.input_shape)
+            counters[node] = 0
+        while True:
+            new_frame = self.gaze.get_next_fixation()
+            if new_frame is None:
+                break
+            self.graph.propagate(new_frame)
+            activity_in_nodes = self.graph.get_nodes_activities(nodes)
+            for node in nodes:
+                what_node_watches_to = self.apply_mask(new_frame, mask=sensors_fields[node])
+                result[node] += activity_in_nodes[node]*what_node_watches_to
+            counter += 1
+        return results, counter
+
+    def save_results_to_files(self, results, counter):
+        folder_name = self.create_folder('res' + str(counter))
+        for node in results:
+            pass # TODO
+
+    def create_folder(self, name_str='analizer_results'):
+        i = 0
+        while True:
+            if os.path.exists(name_str):
+                name_str = name_str + '(' + i + ')'
+                i += 1
+            else:
+                os.makedirs(name_str)
+                break
+        return name_str
