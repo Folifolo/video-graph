@@ -9,7 +9,7 @@ class RuGraphAnalizer:
     def __init__(self, gaze, rugraph):
         self.gaze = gaze
         self.graph = rugraph
-        #self.gaze.restart()
+        self.gaze.restart()
 
     def get_node_specialisation(self, node):
         sensors_field = self.graph.get_receptive_field_for_node(node)
@@ -29,7 +29,7 @@ class RuGraphAnalizer:
     def apply_mask(self, matrix, mask):
         for col in range(matrix.shape[1]):
             for row in range(matrix.shape[0]):
-                if (row,col) not in mask:
+                if (row, col) not in mask:
                     matrix[row, col] = 0
         return matrix
 
@@ -58,6 +58,7 @@ class RuGraphAnalizer:
         for node in results:
             filename = 'node_'+ str(node)+'.png'
             path = os.path.join(folder_name, filename)
+            print path
             scipy.misc.toimage(results[node], cmin=0.0, cmax=1.0).save(path)
 
     # создаем папку с учетом версии - если папка "имя" сущ-вует, то "имя(0)" и т.д.
@@ -78,5 +79,3 @@ class RuGraphAnalizer:
                 break
         return name_str
 
-#an = RuGraphAnalizer(None, None)
-#an.create_folder('bot')
