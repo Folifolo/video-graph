@@ -97,11 +97,10 @@ class RuConsolidator:
                     # да-да, без тестовой части датасета.
                     # тестироваться сетка будет после встраивания в граф - будет предказывать и сверять с истиной
                     success = True
-                    network_layers = lasagne.layers.get_all_layers(network)
-                    self.W_in_hid = lasagne.layers.get_all_param_values(network_layers[2])[0]
-                    self.W_hid_out = lasagne.layers.get_all_param_values(network_layers[2])[2]
-                    self.b_in_hid = lasagne.layers.get_all_param_values(network_layers[2])[1]
-                    self.b_hid_out = lasagne.layers.get_all_param_values(network_layers[2])[3]
+                    self.W_in_hid = lasagne.layers.get_all_param_values(network)[0]
+                    self.W_hid_out = lasagne.layers.get_all_param_values(network)[2]
+                    self.b_in_hid = lasagne.layers.get_all_param_values(network)[1]
+                    self.b_hid_out = lasagne.layers.get_all_param_values(network)[3]
                     break
         if success:
             self.log("SUCESSFULLY!")
