@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*
 import numpy as np
-
+import os
+import scipy.misc
+import re
 
 class RuGraphAnalizer:
 
     def __init__(self, gaze, rugraph):
         self.gaze = gaze
         self.graph = rugraph
-        self.gaze.restart()
+        #self.gaze.restart()
 
     def get_node_specialisation(self, node):
         sensors_field = self.graph.get_receptive_field_for_node(node)
@@ -38,7 +40,7 @@ class RuGraphAnalizer:
         for node in nodes:
             sensor_fields[node] = self.graph.get_receptive_field_for_node(node)
             results[node] = np.zeros(self.graph.input_shape)
-            counters[node] = 0
+            counter = 0
         while True:
             new_frame = self.gaze.get_next_fixation()
             if new_frame is None:
@@ -47,22 +49,34 @@ class RuGraphAnalizer:
             activity_in_nodes = self.graph.get_nodes_activities(nodes)
             for node in nodes:
                 what_node_watches_to = self.apply_mask(new_frame, mask=sensors_fields[node])
-                result[node] += activity_in_nodes[node]*what_node_watches_to
+                results[node] += activity_in_nodes[node]*what_node_watches_to
             counter += 1
         return results, counter
 
     def save_results_to_files(self, results, counter):
         folder_name = self.create_folder('res' + str(counter))
         for node in results:
-            pass # TODO
+            filename = 'node_'+ str(node)+'.png'
+            path = os.path.join(folder_name, filename)
+            scipy.misc.toimage(results[node], cmin=0.0, cmax=1.0).save(path)
 
+    # создаем папку с учетом версии - если папка "имя" сущ-вует, то "имя(0)" и т.д.
     def create_folder(self, name_str='analizer_results'):
         i = 0
         while True:
             if os.path.exists(name_str):
-                name_str = name_str + '(' + i + ')'
+                old = re.search('\(.[0-9]*\)$', name_str)
+                if old is not None:
+                    old = old.group(0)
+                    new = '(' + str(i) + ')'
+                    name_str = name_str.replace(old, new)
+                else:
+                    name_str = name_str + '(' + str(i) + ')'
                 i += 1
             else:
                 os.makedirs(name_str)
                 break
         return name_str
+
+#an = RuGraphAnalizer(None, None)
+#an.create_folder('bot')
