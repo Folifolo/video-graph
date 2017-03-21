@@ -33,6 +33,16 @@ class RuConsolidator:
         print "Y_train:"
         print np.array_str(self.Y_train, precision=2)
 
+    def print_params(self):
+        print "Weights input -> hidden:"
+        print np.array_str(self.W_in_hid, precision=2)
+        print "Weights hidden -> output:"
+        print np.array_str(self.W_hid_out, precision=2)
+        print "bias hidden:"
+        print np.array_str(self.b_in_hid, precision=2)
+        print "bias output:"
+        print np.array_str(self.b_hid_out, precision=2)
+
     def _build_model(self, input_var=None):
         classes_num = self.Y_train.shape[0]
         input_data_len = self.X_train.shape[1]
@@ -147,6 +157,7 @@ class Test:
     def train(self):
         consolidator = RuConsolidator(x=self.X, y=self.Y)
         res = consolidator.consolidate()
+        consolidator.print_params()
 
 mtest = Test()
 mtest.train()
