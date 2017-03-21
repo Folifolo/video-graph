@@ -6,7 +6,7 @@ from rugraph_analizer import RuGraphAnalizer
 print "--------test-------"
 video = 'bigvideo.avi'
 
-gaze = rugaze.SimpleVideoGaze(video_name=video, side=10, left_top_coord=(130,120), print_it=False)
+gaze = rugaze.VideoSeqGaze(folder_with_videos='dataset', side=20, left_top_coord=(20,60))
 
 input_layer_shape = gaze.get_shape()
 graph = rug.RuGraph(input_layer_shape)
@@ -18,7 +18,7 @@ while True:
         # видео кончилось
         gaze.restart()
         i +=1
-        if i == 8:
+        if i == 3:
             break
         new_frame = gaze.get_next_fixation()
     graph.process_next_input(new_frame)

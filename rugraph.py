@@ -30,7 +30,7 @@ class GraphError(Exception):
 
 
 class RuGraph:
-    def __init__(self, input_shape, log=False):
+    def __init__(self, input_shape, log=True):
         self.num_epizodes = 0
         self.iteration = 0
         self.diagram = ruvis.UpdatingDiagram()
@@ -248,7 +248,7 @@ class RuGraph:
             if acc_for_node is 'None':
                 context_nodes = self.get_ego_neighborhood(node,
                                                           cutoff=NEIGHBORHOOD_RADIUS).keys()
-                if len(context_nodes) < acm.MIN_ENTRY_LEN:
+                if len(context_nodes) <= acm.MIN_ENTRY_LEN:
                     continue
                 acc_for_node = self.add_acc_node(node, context_nodes)
                 ids = self.G.node[acc_for_node]['acc_obj'].get_ids()

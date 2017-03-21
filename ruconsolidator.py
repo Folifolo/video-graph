@@ -157,7 +157,8 @@ class Test:
     def train(self):
         consolidator = RuConsolidator(x=self.X, y=self.Y)
         res = consolidator.consolidate()
-        consolidator.print_params()
+        if res:
+            consolidator.print_params()
 
-mtest = Test()
-mtest.train()
+#mtest = Test()
+#mtest.train()
