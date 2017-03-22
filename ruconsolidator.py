@@ -13,8 +13,9 @@ LEARNING_RATE = 0.1
 NUM_EPOCHS = 200
 
 class RuConsolidator:
-    def __init__(self, x, y, log_enabled=True):
+    def __init__(self, x, y, log_enabled=True, test_function=None):
         self.log_enabled = log_enabled
+        self.test_function = test_function
         self.X_train = np.array(x)
         self.Y_train = np.array(y)
         self.print_data()
@@ -118,15 +119,8 @@ class RuConsolidator:
             self.log("consolidation was not successfull")
 
         #проверка сети
-        test_prediction = lasagne.layers.get_output(network, deterministic=True)
-        test = theano.function(inputs=[input_var], outputs=test_prediction, allow_input_downcast= True)
-        raw_x_1 = [ 0., 0.1, 0.2, 0.9]
-        print raw_x_1
-        print "Classified as: %s" % test([raw_x_1])
-        raw_x_2 = [1.0, 0.1, 0.2, 0.]
-        print raw_x_2
-        print "Classified as: %s" % test([raw_x_2])
-
+        if self.test_function is not None:
+            self.test_function(network, input_var)
 
         return success
 
@@ -185,8 +179,18 @@ class Test:
                   [0, 1],
                   [0, 1]]
 
+    def test_function(self, network, input_var):
+        test_prediction = lasagne.layers.get_output(network, deterministic=True)
+        test = theano.function(inputs=[input_var], outputs=test_prediction, allow_input_downcast=True)
+        raw_x_1 = [0., 0.1, 0.2, 0.9]
+        print raw_x_1
+        print "Classified as: %s" % test([raw_x_1])
+        raw_x_2 = [1.0, 0.1, 0.2, 0.]
+        print raw_x_2
+        print "Classified as: %s" % test([raw_x_2])
+
     def train(self):
-        consolidator = RuConsolidator(x=self.X, y=self.Y)
+        consolidator = RuConsolidator(x=self.X, y=self.Y, test_function=self.test_function)
         res = consolidator.consolidate()
         if res:
             consolidator.print_params()
