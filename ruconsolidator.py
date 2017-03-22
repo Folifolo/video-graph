@@ -6,7 +6,7 @@ import lasagne
 
 # документация: https://namenaro.gitbooks.io/struktura-proekta/content/chapter1.html
 #константы алгоритма
-CUCCESS_THR = 0.5 #при какой точности распознавания считать, что обучение удалось
+ERROR_THR = 0.1 #при какой точности распознавания считать, что обучение удалось
 NUM_HIDDEN_UNITS = 3
 BATCH_SIZE = 6
 LEARNING_RATE = 0.1
@@ -53,9 +53,9 @@ class RuConsolidator:
                                              nonlinearity=lasagne.nonlinearities.sigmoid,
                                              W=lasagne.init.GlorotUniform(),
                                              name="hidden_layer")
-        print l_hidden.W
+
         l_out = lasagne.layers.DenseLayer(l_hidden, num_units=classes_num,
-                                          nonlinearity=lasagne.nonlinearities.softmax,
+                                          nonlinearity=lasagne.nonlinearities.sigmoid,
                                           name="output_layer")
         return l_out
 
@@ -81,7 +81,7 @@ class RuConsolidator:
         # символьная оптимизируемая функция
         network = self._build_model(input_var)
         prediction = lasagne.layers.get_output(network)
-        loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)
+        loss = lasagne.objectives.squared_error(prediction, target_var)
         loss = loss.mean()
 
         # какие параметры оптимизируем и как
@@ -103,7 +103,7 @@ class RuConsolidator:
                 num_batches += 1
                 avg_err_over_epoch = train_error / num_batches
                 self.log("err: " + str(avg_err_over_epoch))
-                if avg_err_over_epoch <= 1 - CUCCESS_THR:
+                if avg_err_over_epoch <= ERROR_THR:
                     # да-да, без тестовой части датасета.
                     # тестироваться сетка будет после встраивания в граф - будет предказывать и сверять с истиной
                     success = True
@@ -120,9 +120,12 @@ class RuConsolidator:
         #проверка сети
         test_prediction = lasagne.layers.get_output(network, deterministic=True)
         test = theano.function(inputs=[input_var], outputs=test_prediction, allow_input_downcast= True)
-        raw_x = [ 0., 0.1, 0.2, 0.9]
-        print raw_x
-        print "Classified as: %s" % test([raw_x])
+        raw_x_1 = [ 0., 0.1, 0.2, 0.9]
+        print raw_x_1
+        print "Classified as: %s" % test([raw_x_1])
+        raw_x_2 = [1.0, 0.1, 0.2, 0.]
+        print raw_x_2
+        print "Classified as: %s" % test([raw_x_2])
 
 
         return success
