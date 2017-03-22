@@ -8,8 +8,8 @@ import lasagne
 #константы алгоритма
 CUCCESS_THR = 0.5 #при какой точности распознавания считать, что обучение удалось
 NUM_HIDDEN_UNITS = 3
-BATCH_SIZE = 24
-LEARNING_RATE = 0.01
+BATCH_SIZE = 6
+LEARNING_RATE = 0.1
 NUM_EPOCHS = 200
 
 class RuConsolidator:
@@ -44,19 +44,19 @@ class RuConsolidator:
         print np.array_str(self.b_hid_out, precision=2)
 
     def _build_model(self, input_var=None):
-        classes_num = self.Y_train.shape[0]
+        classes_num = self.Y_train.shape[1]
         input_data_len = self.X_train.shape[1]
         print str(input_data_len) + " ======================"
-        l_in = lasagne.layers.InputLayer(shape=(BATCH_SIZE, input_data_len),
+        l_in = lasagne.layers.InputLayer(shape=(None, input_data_len),
                                          input_var=input_var)
         l_hidden = lasagne.layers.DenseLayer(l_in, num_units=NUM_HIDDEN_UNITS,
-                                            nonlinearity=lasagne.nonlinearities.sigmoid,
-                                            W=lasagne.init.GlorotUniform(),
-                                            name="hidden_layer")
+                                             nonlinearity=lasagne.nonlinearities.sigmoid,
+                                             W=lasagne.init.GlorotUniform(),
+                                             name="hidden_layer")
         print l_hidden.W
         l_out = lasagne.layers.DenseLayer(l_hidden, num_units=classes_num,
-                                        nonlinearity=lasagne.nonlinearities.softmax,
-                                        name="output_layer")
+                                          nonlinearity=lasagne.nonlinearities.softmax,
+                                          name="output_layer")
         return l_out
 
     #скопипастено не глядя из https://github.com/Lasagne/Lasagne/blob/master/examples/mnist.py
@@ -75,8 +75,8 @@ class RuConsolidator:
     def consolidate(self):
         success = False
         # символьные входные/выходные переменные
-        input_var = theano.tensor.matrix(name='inputs')
-        target_var = T.ivector('targets')
+        input_var = T.matrix(name='inputs')
+        target_var = T.matrix(name='targets')
 
         # символьная оптимизируемая функция
         network = self._build_model(input_var)
@@ -88,14 +88,14 @@ class RuConsolidator:
         params = lasagne.layers.get_all_params(network, trainable=True)
         updates = lasagne.updates.nesterov_momentum(
             loss, params, learning_rate=LEARNING_RATE, momentum=0.9)
-        train_fn = theano.function([input_var, target_var],
-                                   loss,
+        train_fn = theano.function(inputs=[input_var, target_var],
+                                   outputs=loss,
                                    updates=updates,
                                    allow_input_downcast=True) # float64 ->float32
         self.log("consolidation staring...")
         # наконец -- само обучение
         for epoch in range(NUM_EPOCHS):
-            train_error = 0.
+            train_error = 0
             num_batches = 0
             for batch in self._iterate_minibatches(self.X_train, self.Y_train, BATCH_SIZE, shuffle=True):
                 inputs, targets = batch
@@ -116,6 +116,15 @@ class RuConsolidator:
             self.log("SUCESSFULLY!")
         else:
             self.log("consolidation was not successfull")
+
+        #проверка сети
+        test_prediction = lasagne.layers.get_output(network, deterministic=True)
+        test = theano.function(inputs=[input_var], outputs=test_prediction, allow_input_downcast= True)
+        raw_x = [ 0., 0.1, 0.2, 0.9]
+        print raw_x
+        print "Classified as: %s" % test([raw_x])
+
+
         return success
 
     def get_trained_weights(self):
@@ -148,11 +157,30 @@ class Test:
                   [1.0, 0.1, 0.0, 0.0],  #2       (11)
                   [0.9, 0.2, 0.1, 0.0]   #2       (12)
                   ]
-        self.Y = []
-        for i in range(12):
-            self.Y.append(1)
-        for i in range(12):
-            self.Y.append(2)
+        self.Y = [[1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [1, 0],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1],
+                  [0, 1]]
 
     def train(self):
         consolidator = RuConsolidator(x=self.X, y=self.Y)
@@ -160,5 +188,5 @@ class Test:
         if res:
             consolidator.print_params()
 
-#mtest = Test()
-#mtest.train()
+mtest = Test()
+mtest.train()
