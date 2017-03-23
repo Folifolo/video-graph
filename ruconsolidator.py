@@ -195,5 +195,5 @@ class Test:
         if res:
             consolidator.print_params()
 
-mtest = Test()
-mtest.train()
+#mtest = Test()
+#mtest.train()

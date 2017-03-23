@@ -110,9 +110,10 @@ class VideoSeqGaze:
 
     def restart(self):
         print "GAZE RESTARTED "
-        if self.capture.isOpened():
-            self.capture.release()
-            cv2.destroyAllWindows()
+        if self.capture is not None:
+             if self.capture.isOpened():
+                self.capture.release()
+                cv2.destroyAllWindows()
         self.video_generator = self._next_video_name()
         self.capture = self.open_next_video()
 

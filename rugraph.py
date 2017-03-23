@@ -16,6 +16,7 @@ PREDICTION_THR = 1.0
 OUTCOME_LINKING_RADIUS = 4 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
 ACTIVATION_THR = 0.001
 NEIGHBORHOOD_RADIUS = 4
+TOO_MUCH_ACTIVITY = 40
 
 # в графе нельзя использовать None, т.к. граф сохраняется в gexf, будет падение.
 # поэтому если надо None, то пишем 'None'
@@ -28,13 +29,10 @@ class GraphError(Exception):
     def __str__(self):
         return repr(self.value)
 
-
 class RuGraph:
     def __init__(self, input_shape, log=True):
         self.num_epizodes = 0
         self.iteration = 0
-        self.diagram = ruvis.UpdatingDiagram()
-        self.diagram.on_launch()
         self.G = nx.DiGraph()
         self.generator = itertools.count(0)
         self.max_layer = -1
@@ -89,7 +87,8 @@ class RuGraph:
         self.G.add_node(acc_node_id,
                         mtype='acc',
                         has_predict_edges=False,
-                        acc_obj=acc
+                        acc_obj=acc,
+                        num_episodes=0
                         )
         self.G.add_edge(initial_node, acc_node_id, mtype='contextual')
         self.G.node[initial_node]['acc_node_id'] = acc_node_id
@@ -127,9 +126,9 @@ class RuGraph:
         msg = "State: " \
         + "\nMax level: " + str(self.max_layer + 1)\
         + "\nNumber of edges: " + str(self.G.number_of_edges())\
-        + "\nacc nodes: " + str(self.get_nodes_of_type('acc'))\
-        + '\nplain nodes: ' + str(self.get_nodes_of_type('plain'))\
-        + '\ninput nodes: ' + str(self.get_nodes_of_type('input'))\
+        + "\nacc nodes: " + str(len(self.get_nodes_of_type('acc')))\
+        + '\nplain nodes: ' + str(len(self.get_nodes_of_type('plain')))\
+        + '\ninput nodes: ' + str(len(self.get_nodes_of_type('input')))\
         + '\nactive accumulators:' + str(self.candidates)\
         #for acc_id in [i for i in self.G.nodes() if self.G.node[i]['mtype'] == 'acc']:
             #self.G.node[acc_id]['acc_obj'].print_state()
@@ -201,6 +200,7 @@ class RuGraph:
 
     def update_accumulators(self):
         unpredicted = []
+        predicted = []
         most_active = self.get_most_active_nodes()
         self.log("update accumulators: most active " + str(len(most_active)) + " nodes: " + str(most_active))
         for node in most_active:
@@ -209,10 +209,18 @@ class RuGraph:
             # значит узел подходит добавлению в акк в кач-ве ауткома
             if not self.prediction_was_good(node):
                 unpredicted.append(node)
-        self.log("unpredicted are " + str(len(unpredicted)) + ", predicted = " +
-                 str(len(most_active) - len(unpredicted)))
+            else:
+                predicted.append(node)
+        self.log("unpredicted are " + str(len(unpredicted)) + ", predicted = " + str(len(predicted)))
+        if len(unpredicted) > TOO_MUCH_ACTIVITY:
+            unpredicted = unpredicted[0:TOO_MUCH_ACTIVITY]
         self.add_as_outcomes(unpredicted)
-        self.add_as_contexts(unpredicted)
+        if len(predicted) > TOO_MUCH_ACTIVITY:
+            predicted = predicted[0:TOO_MUCH_ACTIVITY]
+        else:
+            if len(predicted) < 10:  # TODO
+                self.add_as_contexts(most_active[0:TOO_MUCH_ACTIVITY])
+        self.add_as_contexts(predicted)
         self.log("accumulators updated")
 
     def add_as_outcomes(self, outcomes):
@@ -220,6 +228,7 @@ class RuGraph:
             outcome_id = self.find_nearest_from_list(acc_id, outcomes)
             if outcome_id is not None:
                 self.G.node[acc_id]['acc_obj'].add_outcome(outcome_id)
+                self.G.node[acc_id]['num_episodes'] += 1
                 self.num_epizodes += 1
 
     def find_nearest_from_list(self, acc, outcomes):
@@ -238,17 +247,19 @@ class RuGraph:
             self.G.node[acc_node]['acc_obj'].delete_last_candidate()
 
     def add_as_contexts(self, initial_node_list):
-        #сначала удалить активность от прошлого такта из аккумуляторов и из хеша
+        # сначала удалить активность от прошлого такта из аккумуляторов и из хеша
         self.clear_last_activity_in_accs()
         del self.candidates[:]
         # и после этого уже инициализировать новый набор ждущих аккумуляторов
         # если аккумулятора на узле нет, то создадам его и подсоединим к контекстной окрестности
-        for node in initial_node_list:
+        for i in xrange(len(initial_node_list) - 1, -1, -1):
+            node = initial_node_list[i]
             acc_for_node = self.G.node[node]['acc_node_id']
             if acc_for_node is 'None':
                 context_nodes = self.get_ego_neighborhood(node,
                                                           cutoff=NEIGHBORHOOD_RADIUS).keys()
                 if len(context_nodes) <= acm.MIN_ENTRY_LEN:
+                    del initial_node_list[i]
                     continue
                 acc_for_node = self.add_acc_node(node, context_nodes)
                 ids = self.G.node[acc_for_node]['acc_obj'].get_ids()
@@ -372,7 +383,6 @@ class RuGraph:
     def process_next_input(self, input_signal):
         self.iteration += 1
         print "--------------------ITERATION " + str(self.iteration) + "--------------------"
-        self.show_progress()
         self.print_graph_state()
         self.propagate(input_signal)
         self.prepare_predictions()
