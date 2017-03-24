@@ -24,15 +24,20 @@ class GraphError(Exception):
         return repr(self.value)
 
 class RuGraph:
-    def __init__(self, input_shape, log=True):
-        self.iteration = 0
-        self.G = nx.DiGraph()
-        self.generator = itertools.count(0)
-        self.max_layer = -1
-        self.log_enabled = log
-        self.input_shape = input_shape
-        self.episodic_memory = EpisodicMemory(self)
-        self._create_input_layer()
+    def __init__(self, input_shape, file_name=None, log=True):
+        if file_name is None: # обычное создание графа с нуля
+            self.iteration = 0
+            self.G = nx.DiGraph()
+            self.generator = itertools.count(0)
+            self.max_layer = -1
+            self.log_enabled = log
+            self.input_shape = input_shape
+            self.episodic_memory = EpisodicMemory(self)
+            self._create_input_layer()
+        else:
+            self.G = nx.read_gexf(file_name)
+            # TODO eval
+
 
     def _create_input_layer(self):
         rows, cols = self.input_shape[0], self.input_shape[1]

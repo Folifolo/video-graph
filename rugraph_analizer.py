@@ -39,6 +39,8 @@ class RuGraphAnalizer:
         return matrix
 
     def get_nodes_specialisations(self, nodes):
+        if len(nodes) == 0:
+            return None, 0
         sensors_fields = {}
         counter = 0
         results = {}
@@ -47,7 +49,7 @@ class RuGraphAnalizer:
             results[node] = np.zeros(self.graph.input_shape)
             counter = 0
         while True:
-            new_frame = self.gaze.get_next_fixation()
+            new_frame, was_reseted = self.gaze.get_next_fixation()
             if new_frame is None:
                 break
             self.graph.propagate(new_frame)
@@ -59,6 +61,8 @@ class RuGraphAnalizer:
         return results, counter
 
     def save_results_to_files(self, results, counter):
+        if results is None:
+            return
         folder_name = self.create_folder('res' + str(counter))
         for node in results:
             filename = 'node_'+ str(node)+'.png'
@@ -84,3 +88,15 @@ class RuGraphAnalizer:
                 break
         return name_str
 
+# пусть в папке проекта лежит файл test.gexf
+# посмотрим, чему научились его нейроны
+def test():
+    import rugaze
+    import rugraph
+    gaze = rugaze.VideoSeqGaze(folder_with_videos='dataset2', side=9, left_top_coord=None, log=False)
+    graph = rugraph.RuGraph(input_shape=None, file_name='test.gexf', log=False)
+    analizer = RuGraphAnalizer(gaze=gaze, rugraph=graph)
+    results, counter = analizer.get_nodes_specialisations(graph.get_nodes_of_type('plain'))
+    analizer.save_results_to_files(results, counter)
+
+test()

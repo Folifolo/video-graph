@@ -29,12 +29,13 @@ while True:
     graph.process_next_input(new_frame, was_reseted)
 
 # распечатаем, сохраним результаты обучения
-print "learning ended"
+print "Learning ended..."
 graph.log_enabled = True
 graph.print_graph_state()
 graph.save_droping_accs('test.gexf')
 
 # посмотрим, чему научились нейроны
+print "Analize results..."
 analizer = RuGraphAnalizer(gaze=gaze, rugraph=graph)
 results, counter = analizer.get_nodes_specialisations(graph.get_nodes_of_type('plain'))
 analizer.save_results_to_files(results, counter)
