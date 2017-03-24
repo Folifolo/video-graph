@@ -266,13 +266,13 @@ class RuGraph:
     def show_progress(self):
         self.diagram.update(x_point=self.iteration, y_point=self.num_epizodes)
 
-    def process_next_input(self, input_signal):
+    def process_next_input(self, input_signal, was_gaze_reseted):
         self.iteration += 1
         print "--------------------ITERATION " + str(self.iteration) + "--------------------"
         self.print_graph_state()
         self.propagate(input_signal)
         self.prepare_predictions()
-        self.episodic_memory.update_accumulators(self.G)
+        self.episodic_memory.update_accumulators(self.G, was_gaze_reseted)
         self.episodic_memory.consolidation_phase(self.G)
         self.inspect_graph()
 

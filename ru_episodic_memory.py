@@ -26,7 +26,7 @@ class EpisodicMemory:
             if success:
                 self._delete_accumulators(G)
 
-    def update_accumulators(self, G):
+    def update_accumulators(self, G, was_gaze_reseted):
         unpredicted = []
         predicted = []
         most_active = self.graph.get_most_active_nodes()
@@ -42,7 +42,10 @@ class EpisodicMemory:
         self.log("unpredicted are " + str(len(unpredicted)) + ", predicted = " + str(len(predicted)))
         if len(unpredicted) > TOO_MUCH_ACTIVITY:
             unpredicted = unpredicted[0:TOO_MUCH_ACTIVITY]
-        self._add_as_outcomes(G, unpredicted)
+        # если источник входных данных переключился, то связи между
+        # прошлыми контекстами и новыми исходами нет:
+        if not was_gaze_reseted:
+            self._add_as_outcomes(G, unpredicted)
         if len(predicted) > TOO_MUCH_ACTIVITY:
             predicted = predicted[0:TOO_MUCH_ACTIVITY]
         else:
