@@ -6,13 +6,11 @@ import networkx as nx
 import ruconsolidator as ruc
 import rugraph_inspector
 import ru_data_accumulator as acm
+from ru_episodic_memory import EpisodicMemory
 
 #константы алгоритма
 PREDICTION_THR = 1.0
-OUTCOME_LINKING_RADIUS = 4 # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывания
 ACTIVATION_THR = 0.001
-NEIGHBORHOOD_RADIUS = 4
-TOO_MUCH_ACTIVITY = 40
 
 # в графе нельзя использовать None, т.к. граф сохраняется в gexf, будет падение.
 # поэтому если надо None, то пишем 'None'
@@ -27,14 +25,13 @@ class GraphError(Exception):
 
 class RuGraph:
     def __init__(self, input_shape, log=True):
-
         self.iteration = 0
         self.G = nx.DiGraph()
         self.generator = itertools.count(0)
         self.max_layer = -1
         self.log_enabled = log
         self.input_shape = input_shape
-
+        self.episodic_memory = EpisodicMemory(self, log_enabled=True)
         self._create_input_layer()
 
     def _create_input_layer(self):
@@ -112,7 +109,7 @@ class RuGraph:
         + "\nacc nodes: " + str(len(self.get_nodes_of_type('acc')))\
         + '\nplain nodes: ' + str(len(self.get_nodes_of_type('plain')))\
         + '\ninput nodes: ' + str(len(self.get_nodes_of_type('input')))\
-        + '\nactive accumulators:' + str(self.candidates)\
+        + '\nactive accumulators:' + str(self.episodic_memory.candidates)\
         #for acc_id in [i for i in self.G.nodes() if self.G.node[i]['mtype'] == 'acc']:
             #self.G.node[acc_id]['acc_obj'].print_state()
         self.log(msg)
@@ -218,18 +215,6 @@ class RuGraph:
                 if self.G.edge[node_id][target_id]['mtype'] == 'predict':
                     self.G.edge[node_id][target_id]['current_prediction'] = activation
 
-    def consolidate(self, accumulator):
-        self.log("try to consolidate acuumulator for node " + str(accumulator.id) + "...")
-        consolidation = ruc.RuConsolidator(accumulator.get_training_data()[0],accumulator.get_training_data()[1])
-        success = consolidation.consolidate()
-        if success:
-            W1, W2, b1, b2 = consolidation.get_trained_weights()
-            source_nodes = accumulator.get_source_nodes()
-            sink_nodes = accumulator.get_sink_nodes()
-            self.add_new_nodes(W1, W2, b1, b2, source_nodes, sink_nodes)
-            return success
-        self.log("...consolidation failed.")
-        return False  # консолидация не удалась
 
     def add_new_nodes(self, W1, W2, b1, b2, source_nodes, sink_nodes):
         self.log("adding new nodes...")
@@ -287,12 +272,8 @@ class RuGraph:
         self.print_graph_state()
         self.propagate(input_signal)
         self.prepare_predictions()
-        self.update_accumulators()
-        accumulator = self.find_accumulator_to_consolidate()
-        if accumulator is not None:
-            success = self.consolidate(accumulator)
-            if success:
-                self.delete_accumulators()
+        self.episodic_memory.update_accumulators(self.G)
+        self.episodic_memory.consolidation_phase(self.G)
         self.inspect_graph()
 
     def save_droping_accs(self, filename="rugraph.gexf"):
