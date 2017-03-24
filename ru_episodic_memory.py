@@ -9,7 +9,7 @@ OUTCOME_LINKING_RADIUS = 4  # макс. расстояние от центра �
 
 
 class EpisodicMemory:
-    def __init__(self, graph, log_enabled=True):
+    def __init__(self, graph, log_enabled=False):
         self.graph = graph
         self.num_epizodes = 0
         self.candidates = []

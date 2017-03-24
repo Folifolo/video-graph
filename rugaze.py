@@ -126,8 +126,6 @@ class VideoSeqGaze:
                 cv2.destroyAllWindows()
         self.video_generator = self._next_video_name()
         self.capture = self.open_next_video()
-        if self.need_change_gaze_position:
-            self._set_random_left_top()
 
     def shift(self, mode='random'):
         if mode == 'random':

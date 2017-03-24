@@ -6,7 +6,7 @@ from rugraph_analizer import RuGraphAnalizer
 print "--------test-------"
 video = 'bigvideo.avi'
 
-gaze = rugaze.VideoSeqGaze(folder_with_videos='dataset', side=9, left_top_coord=None, log=False)
+gaze = rugaze.VideoSeqGaze(folder_with_videos='dataset2', side=9, left_top_coord=None, log=False)
 gaze_auditor = rugaze.GazeHistoryAuditor()
 input_layer_shape = gaze.get_shape()
 graph = rug.RuGraph(input_layer_shape, log=False)
@@ -20,15 +20,18 @@ while True:
         gaze.shift('random')
         continue
     if new_frame is None:
-        gaze.restart()
         restarts += 1
         if restarts < 2: # сколько раз проиграть папку с видео
+            gaze.restart()
             continue
         else:
             break
     graph.process_next_input(new_frame, was_reseted)
 
+# распечатаем, сохраним результаты обучения
 print "learning ended"
+graph.log_enabled = True
+graph.print_graph_state()
 graph.save_droping_accs('test.gexf')
 
 # посмотрим, чему научились нейроны

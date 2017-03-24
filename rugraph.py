@@ -31,7 +31,7 @@ class RuGraph:
         self.max_layer = -1
         self.log_enabled = log
         self.input_shape = input_shape
-        self.episodic_memory = EpisodicMemory(self, log_enabled=True)
+        self.episodic_memory = EpisodicMemory(self)
         self._create_input_layer()
 
     def _create_input_layer(self):
