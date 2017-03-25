@@ -5,13 +5,15 @@ from rugraph_analizer import RuGraphAnalizer
 
 print "--------test-------"
 video = 'bigvideo.avi'
-
-gaze = rugaze.VideoSeqGaze(folder_with_videos='dataset2', side=9, left_top_coord=None, log=False)
+folder = 'C:\Users\/neuro/\Downloads/\ASLAN actions similarity database/\ASLAN_AVI'
+folder2 = 'C:\Users\/neuro/\Downloads/\ASLAN actions similarity database/\little'
+gaze = rugaze.VideoSeqGaze(folder_with_videos=folder2, side=14, left_top_coord=None, log=False)
 gaze_auditor = rugaze.GazeHistoryAuditor()
 input_layer_shape = gaze.get_shape()
 graph = rug.RuGraph(input_layer_shape, log=False)
 
 restarts = 0
+
 while True:
     new_frame, was_reseted = gaze.get_next_fixation()
     if was_reseted:
@@ -21,7 +23,7 @@ while True:
         continue
     if new_frame is None:
         restarts += 1
-        if restarts < 2: # сколько раз проиграть папку с видео
+        if restarts < 1: # сколько раз проиграть папку с видео
             gaze.restart()
             continue
         else:

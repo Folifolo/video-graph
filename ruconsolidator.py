@@ -6,11 +6,11 @@ import lasagne
 
 # документация: https://namenaro.gitbooks.io/struktura-proekta/content/chapter1.html
 #константы алгоритма
-ERROR_THR = 0.1 #при какой точности распознавания считать, что обучение удалось
-NUM_HIDDEN_UNITS = 3
+ERROR_THR = 0.5 #при какой точности распознавания считать, что обучение удалось
+NUM_HIDDEN_UNITS = 4
 BATCH_SIZE = 6
 LEARNING_RATE = 0.1
-NUM_EPOCHS = 200
+NUM_EPOCHS = 600
 
 class RuConsolidator:
     def __init__(self, x, y, log_enabled=True, test_function=None):

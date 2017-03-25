@@ -9,8 +9,8 @@ import ru_data_accumulator as acm
 from ru_episodic_memory import EpisodicMemory
 
 #константы алгоритма
-PREDICTION_THR = 1.0
-ACTIVATION_THR = 0.001
+PREDICTION_THR = 0.5
+ACTIVATION_THR = 0.3
 
 # в графе нельзя использовать None, т.к. граф сохраняется в gexf, будет падение.
 # поэтому если надо None, то пишем 'None'

@@ -99,4 +99,4 @@ def test():
     results, counter = analizer.get_nodes_specialisations(graph.get_nodes_of_type('plain'))
     analizer.save_results_to_files(results, counter)
 
-test()
+#test()

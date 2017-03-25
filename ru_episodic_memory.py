@@ -3,9 +3,9 @@ import itertools
 import ruconsolidator as ruc
 import ru_data_accumulator as acm
 
-TOO_MUCH_ACTIVITY = 40
-NEIGHBORHOOD_RADIUS = 4
-OUTCOME_LINKING_RADIUS = 4  # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывани
+TOO_MUCH_ACTIVITY = 50
+NEIGHBORHOOD_RADIUS = 3
+OUTCOME_LINKING_RADIUS = 5  # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывани
 
 
 class EpisodicMemory:
@@ -51,7 +51,8 @@ class EpisodicMemory:
         else:
             if len(predicted) < 10:  # TODO
                 self._add_as_contexts(G, most_active[0:TOO_MUCH_ACTIVITY])
-        self._add_as_contexts(G, predicted)
+            else:
+                self._add_as_contexts(G, predicted)
         self.log("accumulators updated")
 
     def _add_acc_node(self, G, initial_node, context_nodes):
@@ -69,7 +70,7 @@ class EpisodicMemory:
 
     def _consolidate(self, accumulator):
         self.log("try to consolidate acuumulator for node " + str(accumulator.id) + "...")
-        consolidation = ruc.RuConsolidator(accumulator.get_training_data()[0],accumulator.get_training_data()[1])
+        consolidation = ruc.RuConsolidator(accumulator.get_training_data()[0], accumulator.get_training_data()[1])
         success = consolidation.consolidate()
         if success:
             W1, W2, b1, b2 = consolidation.get_trained_weights()
