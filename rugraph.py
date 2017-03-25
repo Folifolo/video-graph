@@ -3,14 +3,11 @@ import itertools
 import math
 from collections import deque
 import networkx as nx
-import ruconsolidator as ruc
 import rugraph_inspector
-import ru_data_accumulator as acm
 from ru_episodic_memory import EpisodicMemory
 
 #константы алгоритма
 PREDICTION_THR = 0.5
-ACTIVATION_THR = 0.3
 
 # в графе нельзя использовать None, т.к. граф сохраняется в gexf, будет падение.
 # поэтому если надо None, то пишем 'None'
@@ -24,7 +21,7 @@ class GraphError(Exception):
         return repr(self.value)
 
 class RuGraph:
-    def __init__(self, input_shape, file_name=None, log=True):
+    def __init__(self, input_shape, file_name=None, log=False):
         if file_name is None: # обычное создание графа с нуля
             self.iteration = 0
             self.G = nx.DiGraph()
@@ -62,7 +59,8 @@ class RuGraph:
                         activation_change=0,
                         mtype='input',
                         has_predict_edges=False,
-                        acc_node_id='None'
+                        acc_node_id='None',
+                        episodes_num=0
                         )
 
     def add_plain_node(self, bias=0):
@@ -75,7 +73,8 @@ class RuGraph:
                         waiting_inputs=0,
                         has_predict_edges=False,
                         bias=bias,
-                        acc_node_id='None'
+                        acc_node_id='None',
+                        episodes_num=0
                         )
         return node_id
 
@@ -164,11 +163,6 @@ class RuGraph:
 
     def activation_function(self, x):
         return 1 / (1 + math.exp(-x))  # sigmoid
-
-    def get_most_active_nodes(self):
-        nodes = [n for n in self.G.nodes() if self.G.node[n]['mtype'] != 'acc' and
-                 self.G.node[n]['activation_change'] >= ACTIVATION_THR]
-        return nodes
 
     def get_ego_neighborhood(self, node, cutoff, node_types=['plain', 'input']):
         assert self.G.node[node]['mtype'] in node_types, 'we consider node itself also to be a part of it\'s context'
@@ -268,9 +262,6 @@ class RuGraph:
     def get_nodes_activities(self, nodes):
         return {node: self.G.node[node]['activity'] for node in nodes}
 
-    def show_progress(self):
-        self.diagram.update(x_point=self.iteration, y_point=self.num_epizodes)
-
     def process_next_input(self, input_signal, was_gaze_reseted):
         self.iteration += 1
         print "--------------------ITERATION " + str(self.iteration) + "--------------------"
@@ -293,4 +284,3 @@ class RuGraph:
         result = inspector.inspect(self.G)
         if not result:
             raise GraphError(inspector.err_msg)
-

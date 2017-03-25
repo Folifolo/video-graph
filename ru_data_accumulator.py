@@ -25,11 +25,12 @@ class DataAccumulator:
             entry.append(G.node[i]['activation'])
         self.entry_candidate = entry
 
-    def add_outcome(self, outcome_id):
+    def add_outcome(self, outcome_id, G):
         assert self.entry_candidate is not None, "context was not initialized for that event"
         if outcome_id not in self.outcomes_entries:
             self.outcomes_entries[outcome_id] = []
         self.outcomes_entries[outcome_id].append(self.entry_candidate)
+        G.node[self.id]['episodes_num'] += 1
         self.entry_candidate = None
 
     def _get_good_outcomes(self):

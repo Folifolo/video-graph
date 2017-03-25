@@ -8,6 +8,7 @@ class RuGraphInspector:
                     'mtype': 'acc',             # тип узла
                     'has_predict_edges': False, # исходит ли из него хоть одно ребро типа predict (нет)
                     'acc_obj': 'UN'             # объект-аккумулятор (см. класс DataAccumulator)
+
                     },
 
         'plain': {
@@ -18,7 +19,8 @@ class RuGraphInspector:
                     'input': 'UN',             # сумма взвешенных входных сигналов
                     'activation': 'UN',        # результат применения нелинейности к инпуту
                     'activation_change': 'UN', # activation(t-1) - activation(t)
-                    'acc_node_id': 'UN'        # айдишник узла-аккумулятора, копящего данные для этого узла
+                    'acc_node_id': 'UN',        # айдишник узла-аккумулятора, копящего данные для этого узла
+                    'episodes_num': 'UN'        # насколько заполненен соотвествующий ему аккумулятор
                  },
 
         'input': {
@@ -26,7 +28,8 @@ class RuGraphInspector:
                   'has_predict_edges': False,
                   'activation': 'UN',
                   'activation_change': 'UN',
-                  'acc_node_id': 'UN'
+                  'acc_node_id': 'UN',
+                  'episodes_num': 'UN'  # насколько заполненен соотвествующий ему аккумулятор
                 }
     }
     # поля для каждого типа ребер

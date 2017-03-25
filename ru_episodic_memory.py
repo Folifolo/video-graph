@@ -6,12 +6,12 @@ import ru_data_accumulator as acm
 TOO_MUCH_ACTIVITY = 50
 NEIGHBORHOOD_RADIUS = 3
 OUTCOME_LINKING_RADIUS = 5  # макс. расстояние от центра аккумулятора внутри котрого можно искать аутком для связывани
-
+ACTIVATION_THR = 0.3
 
 class EpisodicMemory:
-    def __init__(self, graph, log_enabled=False):
+    def __init__(self, graph, log_enabled=True):
         self.graph = graph
-        self.num_epizodes = 0
+        self.amount_epizodes_in_memory = 0
         self.candidates = []
         self.log_enabled = log_enabled
 
@@ -26,34 +26,39 @@ class EpisodicMemory:
             if success:
                 self._delete_accumulators(G)
 
-    def update_accumulators(self, G, was_gaze_reseted):
+    def get_best_predicted_and_unpredicted(self, G):
+        # возьмем самые активные ноды
+        most_active = {n: G.node[n]['episodes_num'] for n in G.nodes() if G.node[n]['mtype'] != 'acc' and
+                 G.node[n]['activation_change'] >= ACTIVATION_THR}
+        # и посортируем их по заполненности связанных с ними аккумуляторов (по убыванию):
+        most_active = sorted(most_active, key=lambda k: most_active[k], reverse=True)
+        # активность части из этих нод была предсказана сетью, а части - не была:
         unpredicted = []
         predicted = []
-        most_active = self.graph.get_most_active_nodes()
-        self.log("update accumulators: most active " + str(len(most_active)) + " nodes: " + str(most_active))
         for node in most_active:
-            # если изменение активности этого узла на этом такте
-            # не было правильно предсказано от прошлого такта
-            # значит узел подходит добавлению в акк в кач-ве ауткома
             if not self.graph.prediction_was_good(node):
                 unpredicted.append(node)
             else:
                 predicted.append(node)
-        self.log("unpredicted are " + str(len(unpredicted)) + ", predicted = " + str(len(predicted)))
+        # если граф большой, то активных нод может быть слишком много, ограничимся же:
         if len(unpredicted) > TOO_MUCH_ACTIVITY:
-            unpredicted = unpredicted[0:TOO_MUCH_ACTIVITY]
+            unpredicted[:] = unpredicted[0:TOO_MUCH_ACTIVITY+1]
+        if len(predicted) > TOO_MUCH_ACTIVITY:
+            predicted[:] = predicted[0:TOO_MUCH_ACTIVITY+1]
+        return predicted, unpredicted
+
+    def update_accumulators(self, G, was_gaze_reseted):
+        predicted, unpredicted = self.get_best_predicted_and_unpredicted(G)
+        self.log("before update accumulators: predicted " + str(len(predicted)) + ", unpredicted " + str(len(unpredicted)))
         # если источник входных данных переключился, то связи между
-        # прошлыми контекстами и новыми исходами нет:
+        # прошлыми контекстами и новыми исходами искать не надо:
         if not was_gaze_reseted:
             self._add_as_outcomes(G, unpredicted)
-        if len(predicted) > TOO_MUCH_ACTIVITY:
-            predicted = predicted[0:TOO_MUCH_ACTIVITY]
         else:
-            if len(predicted) < 10:  # TODO
-                self._add_as_contexts(G, most_active[0:TOO_MUCH_ACTIVITY])
+            if len(predicted) < 10:  # если предсказанной активности оч мало, то возьмем всю #TODO 10
+                self._add_as_contexts(G, (predicted+unpredicted)[0:TOO_MUCH_ACTIVITY])
             else:
                 self._add_as_contexts(G, predicted)
-        self.log("accumulators updated")
 
     def _add_acc_node(self, G, initial_node, context_nodes):
         acc_node_id = self.graph.generator.next()
@@ -61,8 +66,7 @@ class EpisodicMemory:
         G.add_node(acc_node_id,
                         mtype='acc',
                         has_predict_edges=False,
-                        acc_obj=acc,
-                        num_episodes=0
+                        acc_obj=acc
                     )
         G.add_edge(initial_node, acc_node_id, mtype='contextual')
         G.node[initial_node]['acc_node_id'] = acc_node_id
@@ -99,9 +103,8 @@ class EpisodicMemory:
         for acc_id in self.candidates:
             outcome_id = self._find_nearest_from_list(G, acc_id, outcomes)
             if outcome_id is not None:
-                G.node[acc_id]['acc_obj'].add_outcome(outcome_id)
-                G.node[acc_id]['num_episodes'] += 1
-                self.num_epizodes += 1
+                G.node[acc_id]['acc_obj'].add_outcome(outcome_id, G)
+                self.amount_epizodes_in_memory += 1
 
     def _find_nearest_from_list(self, G, acc, outcomes):
         center_of_acc = G.node[acc]['acc_obj'].id

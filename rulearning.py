@@ -7,10 +7,10 @@ print "--------test-------"
 video = 'bigvideo.avi'
 folder = 'C:\Users\/neuro/\Downloads/\ASLAN actions similarity database/\ASLAN_AVI'
 folder2 = 'C:\Users\/neuro/\Downloads/\ASLAN actions similarity database/\little'
-gaze = rugaze.VideoSeqGaze(folder_with_videos=folder2, side=14, left_top_coord=None, log=False)
+gaze = rugaze.VideoSeqGaze(folder_with_videos='dataset', side=24, left_top_coord=None)
 gaze_auditor = rugaze.GazeHistoryAuditor()
 input_layer_shape = gaze.get_shape()
-graph = rug.RuGraph(input_layer_shape, log=False)
+graph = rug.RuGraph(input_layer_shape)
 
 restarts = 0
 
