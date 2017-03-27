@@ -28,11 +28,15 @@ class RuConsolidator:
         if self.log_enabled:
             print "[RuConsolidator] " + msg
 
+    def data_as_str(self):
+        data = "X_train:" \
+        + np.array_str(self.X_train, precision=2)\
+        + "\nY_train:"\
+        + np.array_str(self.Y_train, precision=2)
+        return data
+
     def print_data(self):
-        print "X_train:"
-        print np.array_str(self.X_train, precision=2)
-        print "Y_train:"
-        print np.array_str(self.Y_train, precision=2)
+        self.log(self.data_as_str())
 
     def print_params(self):
         print "Weights input -> hidden:"
@@ -74,6 +78,7 @@ class RuConsolidator:
             yield inputs[excerpt], targets[excerpt]
 
     def consolidate(self):
+        self.save_data_to_file()
         success = False
         # символьные входные/выходные переменные
         input_var = T.matrix(name='inputs')
@@ -126,6 +131,13 @@ class RuConsolidator:
 
     def get_trained_weights(self):
         return self.W_in_hid, self.W_hid_out, self.b_in_hid, self.b_hid_out
+
+    def save_data_to_file(self):
+        from datetime import datetime
+        file_name = "consolidation_" + str(datetime.now().strftime("%I:%M%p")) + ".txt"
+        text_file = open(file_name, "w")
+        text_file.write(self.data_as_str())
+        text_file.close()
 
 class Test:
     def __init__(self):
@@ -195,5 +207,5 @@ class Test:
         if res:
             consolidator.print_params()
 
-#mtest = Test()
-#mtest.train()
+mtest = Test()
+mtest.train()
