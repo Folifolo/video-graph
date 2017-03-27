@@ -54,11 +54,10 @@ class EpisodicMemory:
         # прошлыми контекстами и новыми исходами искать не надо:
         if not was_gaze_reseted:
             self._add_as_outcomes(G, unpredicted)
+        if len(predicted) < 10:  # если предсказанной активности оч мало, то возьмем всю #TODO 10
+            self._add_as_contexts(G, (predicted+unpredicted)[0:TOO_MUCH_ACTIVITY])
         else:
-            if len(predicted) < 10:  # если предсказанной активности оч мало, то возьмем всю #TODO 10
-                self._add_as_contexts(G, (predicted+unpredicted)[0:TOO_MUCH_ACTIVITY])
-            else:
-                self._add_as_contexts(G, predicted)
+            self._add_as_contexts(G, predicted)
 
     def _add_acc_node(self, G, initial_node, context_nodes):
         acc_node_id = self.graph.generator.next()
@@ -141,3 +140,4 @@ class EpisodicMemory:
                 self.graph.connect_input_weights_to_node(node, ids, 'contextual')
             G.node[acc_for_node]['acc_obj'].add_new_entry_candidate(G)
         self.candidates = [G.node[n]['acc_node_id'] for n in initial_node_list]
+
