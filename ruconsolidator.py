@@ -134,7 +134,8 @@ class RuConsolidator:
 
     def save_data_to_file(self):
         from datetime import datetime
-        file_name = "consolidation_" + str(datetime.now().strftime("%I:%M%p")) + ".txt"
+        time = str(datetime.now().strftime("%I_%M_%S%p"))
+        file_name = "consolidation_" + time + ".txt"
         text_file = open(file_name, "w")
         text_file.write(self.data_as_str())
         text_file.close()
@@ -207,5 +208,5 @@ class Test:
         if res:
             consolidator.print_params()
 
-mtest = Test()
-mtest.train()
+#mtest = Test()
+#mtest.train()
