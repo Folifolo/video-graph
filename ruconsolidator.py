@@ -140,7 +140,7 @@ class RuConsolidator:
         text_file.write(self.data_as_str())
         text_file.close()
 
-class Test:
+class ConsolidatorTest:
     def __init__(self):
         self.X = [[0.0, 0, 0.1, 0.7],   #1 (1)
                   [0.0, 0, 0.0, 0.9],   #1 (2)
@@ -208,5 +208,6 @@ class Test:
         if res:
             consolidator.print_params()
 
-#mtest = Test()
-#mtest.train()
+if __name__ == "__main__":
+    mtest = ConsolidatorTest()
+    mtest.train()
