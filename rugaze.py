@@ -4,9 +4,55 @@ import cv2
 import numpy as np
 import fnmatch
 import random
+from abc import ABCMeta, abstractmethod
 
+class SeqGaze(object):
+    """
+    Взгляд - класс, котрый отавечает за входные данные для сенсоров нейросети.
+    Просматривает последовательность входных медиа-данных (картинок или видео,
+    в зависимости от реализации)
+    """
+    __metaclass__ = ABCMeta
 
-class VideoSeqGaze:
+    @abstractmethod
+    def log(self, message):
+        """
+        Логирование.
+        :param message: сообщение для записи его в логи
+        :return:
+        """
+        pass
+
+    @abstractmethod
+    def get_shape(self):
+        """
+        Получить форму объекта взгляда.
+        :return:
+         (длина, ширина). Например, если взгляд имеет форму 10 на 10 пикселей,
+        то вернется (10, 10)
+        """
+        pass
+
+    @abstractmethod
+    def get_next_fixation(self):
+        """
+        То, что сейчас попало в квадрат взгляда
+        :return:
+        1)возвращает numpy матрицу значений от 0 до 1.
+        Именно это в дальнейшем предназначено подать на вход сенсорам нейросети.
+        2) флаг: True если этот кадр первый после "открытия глаза", False иначе
+        """
+        pass
+
+    @abstractmethod
+    def shift(self):
+        """
+        Установить взгляд в новую произвольную точку на текущих данных.
+        :return:
+        """
+
+class VideoSeqGaze(SeqGaze):
+    """Квадратный взгляд, идущий по видяшкам из заданной папки."""
     def __init__(self, folder_with_videos, side, left_top_coord=None, log=False, show=False):
         assert side > 0
         self.log_enabled = log
@@ -27,9 +73,14 @@ class VideoSeqGaze:
 
     def log(self, message):
         if self.log_enabled:
-            print message
+            print "<VideoSeqGaze> " + message
 
     def _find_all_videos_in_folder(self, folder):
+        """
+        Находит все видео avi и mp4 из данной папки
+        :param folder: строка - имя папки
+        :return: список строк - имен видяшек из этой папки
+        """
         results = []
         for root, dirs, files in os.walk(folder):
             for _file in files:
@@ -41,6 +92,7 @@ class VideoSeqGaze:
         return results
 
     def get_shape(self):
+        """ Получить форму взгляда"""
         return (self.side, self.side)
 
     def _next_video_name(self):
@@ -70,9 +122,14 @@ class VideoSeqGaze:
         self.capture.release()
         cv2.destroyAllWindows()
 
-    # возвращает то, что сейчас попало во взгляд и
-    # является ли это первым кадром с момента переинициализации взгляда
     def get_next_fixation(self):
+        """
+        Возвращает то, что сейчас попало во взгляд (квадратная область текущего кадра видео)
+        и является ли это первым кадром с момента переинициализации взгляда
+        :return:
+        1. numpy матрица чисел от 0 до 1
+        2. True, если взгляд был только переинициализирован и False иначе
+        """
         assert self.prev_frame is not None,  "video was not opened"
         if not self.capture.isOpened():
             self.close_current_video()
@@ -89,7 +146,7 @@ class VideoSeqGaze:
                 return None, False # других видео нет, смотреть больше нечего
         else:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        subframe = self.get_subframe(self.prev_frame, frame)
+        subframe = self._get_subframe(self.prev_frame, frame)
         if self.show:
             cv2.imshow('gaze', subframe)
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -103,7 +160,7 @@ class VideoSeqGaze:
         else:
             return subframe, False
 
-    def get_subframe(self, frame1, frame2):
+    def _get_subframe(self, frame1, frame2):
         diff = frame2 - frame1
         X1 = self.left_top_coord[0]
         X2 = self.left_top_coord[0] + self.side
@@ -181,6 +238,21 @@ class GazeTest:
                 break
 
 
-#my_gaze = GazeTest()
-#my_gaze.test()
+from enum import Enum
 
+class Directions(Enum):
+    LEFT = 1
+    RIGHT = 2
+    UP = 3
+    DOWN = 4
+
+class PicturesSeqGaze(SeqGaze):
+    """ Класс квадратного взгляда, смотрящего картинки скользящим окном"""
+    def __init__(self):
+        pass
+
+
+
+if __name__ == "__main__":
+    my_gaze = GazeTest()
+    my_gaze.test()
