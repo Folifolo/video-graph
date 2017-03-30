@@ -14,14 +14,21 @@ class SeqGaze(object):
     """
     __metaclass__ = ABCMeta
 
-    @abstractmethod
+    def __init__(self, folder, side, log, show):
+        assert side > 0
+        self.log_enabled = log
+        self.show = show
+        self.folder = folder
+        self.side = side
+
     def log(self, message):
         """
         Логирование.
         :param message: сообщение для записи его в логи
         :return:
         """
-        pass
+        if self.log_enabled:
+            print "<Gaze> " + message
 
     @abstractmethod
     def get_shape(self):
@@ -51,58 +58,48 @@ class SeqGaze(object):
         :return:
         """
 
-class VideoSeqGaze(SeqGaze):
-    """Квадратный взгляд, идущий по видяшкам из заданной папки."""
-    def __init__(self, folder_with_videos, side, left_top_coord=None, log=False, show=False):
-        assert side > 0
-        self.log_enabled = log
-        self.frame_shape = None           # щирина и высота кадра у текущего видео
-        self.show = show                  # показывать ли то, что оно видит, как видяшку
-        self.folder = folder_with_videos  # папка в которой лежат видяшки
-        self.side = side                  # сторона квадрата взгляда
-        self.prev_frame = None            # предыдущий фрейм видео (не взгляда)
-        self.gaze_was_restarted = False   # был ли взгляд только что сдвинут
-        self.videos = self._find_all_videos_in_folder(folder_with_videos) # все называния видяшек
-        self.left_top_coord = [0,0]       # координата верхнего левого угла взгляда
-        self.need_change_gaze_position = True  # нужно ли перестанавливать взгляд в начале каждого видео случайн.образом
-        if left_top_coord is not None:  # если она была передана в кнструктор, то на всех видео взгляд будет в ней
-            self.need_change_gaze_position = False
-            self.left_top_coord = [left_top_coord[0], left_top_coord[1]]
-        self.video_generator = self._next_video_name() # генератор, из которого доаставать имя следующего видео
-        self.capture = self.open_next_video()          # открываем первое видео
-
-    def log(self, message):
-        if self.log_enabled:
-            print "<VideoSeqGaze> " + message
-
-    def _find_all_videos_in_folder(self, folder):
+    def _find_files_in_folder(self, folder, extensions):
         """
-        Находит все видео avi и mp4 из данной папки
+        Находит все файлы заданных расширений из данной папки
         :param folder: строка - имя папки
+            extensions: список расширений, например ['avi', 'mp3']
         :return: список строк - имен видяшек из этой папки
         """
         results = []
         for root, dirs, files in os.walk(folder):
             for _file in files:
-                if fnmatch.fnmatch(_file, '*.avi'):
-                    results.append(os.path.join(root, _file))
-                if fnmatch.fnmatch(_file, '*.mp4'):
-                    results.append(os.path.join(root, _file))
+                for extension in extensions:
+                    pattern = '*.' + extension
+                    if fnmatch.fnmatch(_file, pattern):
+                        results.append(os.path.join(root, _file))
         self.log(str(results))
         return results
+
+class VideoSeqGaze(SeqGaze):
+    """Квадратный взгляд, идущий по видяшкам из заданной папки."""
+    def __init__(self, folder, side, left_top_coord=None, log=False, show=False):
+        super(VideoSeqGaze, self).__init__(folder, side, log, show)
+        self.frame_shape = None           # щирина и высота кадра у текущего видео
+        self.prev_frame = None            # предыдущий фрейм видео (не взгляда)
+        self.gaze_was_restarted = False   # был ли взгляд только что сдвинут
+        self.videos = self._find_files_in_folder(folder, ['mp4', 'avi']) # все называния видяшек
+        self.left_top_coord = [0,0]       # координата верхнего левого угла взгляда
+        self.need_change_gaze_position = True  # нужно ли перестанавливать взгляд в начале каждого видео случайн.образом
+        if left_top_coord is not None:  # если она была передана в кнструктор, то на всех видео взгляд будет в ней
+            self.need_change_gaze_position = False
+            self.left_top_coord = [left_top_coord[0], left_top_coord[1]]
+        self.num_of_video = -1
+        self.capture = self.open_next_video()          # открываем первое видео
 
     def get_shape(self):
         """ Получить форму взгляда"""
         return (self.side, self.side)
 
-    def _next_video_name(self):
-        for video in self.videos:
-            yield video
-
     def open_next_video(self):
-        video = next(self.video_generator, None)
-        if video is None:
-            return None  # все видео уже показаны
+        self.num_of_video += 1
+        if len(self.videos) <= self.num_of_video:
+            return None # все видео уже показаны
+        video = self.videos[self.num_of_video]
         print "go to next video: " + video
         assert os.path.isfile(video)
         capture = cv2.VideoCapture(video)
@@ -181,7 +178,7 @@ class VideoSeqGaze(SeqGaze):
              if self.capture.isOpened():
                 self.capture.release()
                 cv2.destroyAllWindows()
-        self.video_generator = self._next_video_name()
+        self.num_of_video = 0
         self.capture = self.open_next_video()
 
     def shift(self, mode='random'):
@@ -230,8 +227,8 @@ class GazeTest:
 
     def test(self):
         print "seq_video-gaze-test"
-        folder = 'dataset'
-        gaze = VideoSeqGaze(folder, side=5, log=False, show=True)
+        folder = 'C:\Users\/neuro/\Downloads/\ASLAN actions similarity database/\little'
+        gaze = VideoSeqGaze(folder, side=5, log=True, show=True)
         while True:
             img = gaze.get_next_fixation()
             if img is None:
@@ -248,8 +245,34 @@ class Directions(Enum):
 
 class PicturesSeqGaze(SeqGaze):
     """ Класс квадратного взгляда, смотрящего картинки скользящим окном"""
-    def __init__(self):
+    def __init__(self, seq_per_picture, folder, side, left_top_coord=None, log=False, show=False):
+        super(VideoSeqGaze, self).__init__(folder, side, log, show)
+        self.seq_per_picture = seq_per_picture
+        self.curr_picture = None
+        self.prev = None  # предыдущее седержимое взгляда
+        self.gaze_was_restarted = False  # был ли взгляд только что сдвинут
+        self.pictures = self._find_all_pictures_in_folder(folder, ['jpg', 'bmp'])
+        self.left_top_coord = [left_top_coord[0], left_top_coord[1]]
+        self.curr_num_in_seq = 0
+        self.curr_pict_id = -1
+
+    def get_next_fixation(self):
         pass
+
+    def get_shape(self):
+        pass
+
+    def shift(self):
+        pass
+
+    def next_picture(self):
+        self.curr_pict_id += 1
+        if len(self.pictures) <= self.curr_pict_id:
+            return None  # все видео уже показаны
+        picture = self.pictures[self.curr_pict_id]
+        print "go to next picture: " + picture
+        assert os.path.isfile(picture)
+        self.curr_picture = cv2.imread(picture, cv2.IMREAD_GRAYSCALE)
 
 
 
